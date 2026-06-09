@@ -2,8 +2,8 @@ import { createClient } from '@/lib/supabase/client'
 
 export async function resolveHouseholdId(): Promise<string> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const { data: { user }, error: authErr } = await supabase.auth.getUser()
+  if (authErr || !user) throw new Error('Not authenticated')
   const { data, error } = await supabase
     .from('household_members')
     .select('household_id')
@@ -27,8 +27,8 @@ export async function getHouseholdMemberNames(): Promise<string[]> {
 
 export async function createHousehold(name: string, displayName: string): Promise<void> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const { data: { user }, error: authErr } = await supabase.auth.getUser()
+  if (authErr || !user) throw new Error('Not authenticated')
 
   const { data: household, error: hErr } = await supabase
     .from('households')
@@ -45,6 +45,18 @@ export async function createHousehold(name: string, displayName: string): Promis
 
 export async function createInvite(householdId: string): Promise<string> {
   const supabase = createClient()
+
+  const { count } = await supabase
+    .from('household_invites')
+    .select('id', { count: 'exact', head: true })
+    .eq('household_id', householdId)
+    .is('used_at', null)
+    .gt('expires_at', new Date().toISOString())
+
+  if ((count ?? 0) >= 1) {
+    throw new Error('An active invite already exists. Wait for it to expire or be used before generating a new one.')
+  }
+
   const token = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
   const { error } = await supabase
@@ -56,8 +68,8 @@ export async function createInvite(householdId: string): Promise<string> {
 
 export async function redeemInvite(token: string, displayName: string): Promise<void> {
   const supabase = createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
+  const { data: { user }, error: authErr } = await supabase.auth.getUser()
+  if (authErr || !user) throw new Error('Not authenticated')
 
   const { data: invite, error: invErr } = await supabase
     .from('household_invites')
