@@ -24,24 +24,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient()
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_, session) => {
+    // Do NOT make any supabase.from() calls inside this callback — that would
+    // call getSession() while initializePromise is still pending, causing a deadlock.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setUser(session?.user ?? null)
-      if (session?.user) {
-        const { data } = await supabase
-          .from('household_members')
-          .select('household_id, display_name')
-          .eq('user_id', session.user.id)
-          .maybeSingle()
-        setHouseholdId(data?.household_id ?? null)
-        setDisplayName(data?.display_name ?? null)
-      } else {
+      if (!session?.user) {
         setHouseholdId(null)
         setDisplayName(null)
+        setLoading(false)
       }
-      setLoading(false)
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  // Fetch household data in a separate effect so it runs AFTER initializePromise resolves.
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    ;(async () => {
+      try {
+        const { data } = await supabase
+          .from('household_members')
+          .select('household_id, display_name')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        setHouseholdId(data?.household_id ?? null)
+        setDisplayName(data?.display_name ?? null)
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [user?.id])
 
   async function signOut() {
     await createClient().auth.signOut()
