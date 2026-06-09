@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { redeemInvite } from '@/lib/queries/households'
+import { redeemInviteAction } from '@/app/actions/invites'
 import Button from '@/components/ui/Button'
 
 const inputCls = 'w-full h-10 px-3 rounded-lg focus:outline-none transition-colors'
@@ -41,7 +41,7 @@ function JoinForm() {
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
         if (signInErr) throw signInErr
       }
-      await redeemInvite(token, displayName || email.split('@')[0])
+      await redeemInviteAction(token, displayName || email.split('@')[0])
       router.push('/')
       router.refresh()
     } catch (err) {
