@@ -1,0 +1,39 @@
+/* Rov design tokens — dark-first, blue accent */
+
+:root {
+  --color-background: #0a0e1a;
+  --color-surface: #111827;
+  --color-border: #1e2a45;
+  --color-border-subtle: #161e32;
+  --color-foreground: #ffffff;
+  --color-foreground-secondary: #94a3b8;
+  --color-muted: #4a5a7a;
+
+  --color-primary: #3b6ef8;
+  --color-primary-subtle: rgba(59, 110, 248, 0.12);
+  --color-positive: #2d9e6b;
+  --color-positive-subtle: rgba(45, 158, 107, 0.12);
+  --color-negative: #e8553a;
+  --color-negative-subtle: rgba(232, 85, 58, 0.12);
+
+  --border-radius-sm: 6px;
+  --border-radius-md: 8px;
+  --border-radius-lg: 12px;
+}
+
+.light {
+  --color-background: #f8f7f4;
+  --color-surface: #ffffff;
+  --color-border: #ece9e3;
+  --color-border-subtle: #f0ede7;
+  --color-foreground: #1a1a1a;
+  --color-foreground-secondary: #6b7280;
+  --color-muted: #9ca3af;
+
+  --color-primary: #3b6ef8;
+  --color-primary-subtle: rgba(59, 110, 248, 0.08);
+  --color-positive: #2d9e6b;
+  --color-positive-subtle: rgba(45, 158, 107, 0.08);
+  --color-negative: #e8553a;
+  --color-negative-subtle: rgba(232, 85, 58, 0.08);
+}
