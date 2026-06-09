@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# editor / tool configs
+.claude/
+.cursor/
+.impeccable/
+
+# debug scripts
+rov-debug.mjs

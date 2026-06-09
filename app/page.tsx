@@ -102,7 +102,7 @@ export default function HomePage() {
 
           {/* Budget health */}
           <section className="mb-6">
-            <h2 className="text-[13px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Budget this month</h2>
+            <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Budget this month</h2>
             <div className="grid grid-cols-3 gap-2 mb-4">
               <MetricCard label="Income"   value={fmtWhole(totalIncome)} />
               <MetricCard label="Budgeted" value={fmtWhole(totalBudgeted)} />
@@ -127,7 +127,7 @@ export default function HomePage() {
           {/* Savings */}
           {pods.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-[13px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Savings</h2>
+              <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Savings</h2>
               <div className="grid grid-cols-2 gap-2">
                 <MetricCard label="Total allotted" value={fmtWhole(totalAllotted)} />
                 <MetricCard label="Total goal"     value={fmtWhole(totalPodGoal)} />
@@ -143,7 +143,7 @@ export default function HomePage() {
           {/* Top spending */}
           {topCategories.length > 0 && (
             <section className="mb-6">
-              <h2 className="text-[13px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Top spending</h2>
+              <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Top spending</h2>
               <Card>
                 {topCategories.map(c => {
                   const isOver = c.expected > 0 && c.actual > c.expected

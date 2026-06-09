@@ -1,7 +1,21 @@
 @import './tokens.css';
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Restore focus visibility for keyboard users */
+@layer utilities {
+  .focus\:outline-none:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: inherit;
+  }
+}
+
+/* Show delete buttons on touch-only devices */
+@media (hover: none) {
+  .group .opacity-0 {
+    opacity: 0.35;
+  }
+}
 
 * {
   box-sizing: border-box;
@@ -19,3 +33,12 @@ body {
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
+
+/* Prevent browser autofill from overriding dark background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px var(--color-surface) inset !important;
+  -webkit-text-fill-color: var(--color-foreground) !important;
+  caret-color: var(--color-foreground);
+}

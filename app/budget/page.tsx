@@ -104,13 +104,13 @@ export default function BudgetPage() {
           {/* Month nav */}
           <div className="flex items-center gap-2 mb-5">
             <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(shiftMonth(month, -1))}>←</Button>
-            <span className="text-[13px] min-w-[140px] text-center" style={{ color: 'var(--color-foreground-secondary)' }}>
+            <span className="text-[13px] min-w-[100px] text-center" style={{ color: 'var(--color-foreground-secondary)' }}>
               {formatMonthLabel(month)}
             </span>
             <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(shiftMonth(month, 1))}>→</Button>
             <div className="ml-auto">
               <Button size="sm" variant="ghost" intent="neutral" onClick={handleCarryover} disabled={carrying}>
-                {carrying ? 'Copying…' : '↩ Copy last month'}
+                {carrying ? 'Copying…' : <>Copy<span className="hidden sm:inline"> from last month</span></>}
               </Button>
             </div>
           </div>
@@ -166,7 +166,7 @@ export default function BudgetPage() {
 
             {categories.length === 0 ? (
               <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>
-                No categories yet. Add one below or use &ldquo;Copy last month.&rdquo;
+                No categories yet — add one below or copy from last month to get started.
               </p>
             ) : (
               <>
@@ -226,15 +226,37 @@ function BudgetCategoryRow({
 }) {
   const [exp, setExp] = useState(String(category.expected))
   const [act, setAct] = useState(String(category.actual))
+  const [savingField, setSavingField] = useState<'expected' | 'actual' | null>(null)
+  const [savedField,  setSavedField]  = useState<'expected' | 'actual' | null>(null)
 
   useEffect(() => { setExp(String(category.expected)) }, [category.expected])
   useEffect(() => { setAct(String(category.actual))   }, [category.actual])
+
+  async function handleSave(field: 'expected' | 'actual', raw: string) {
+    const val = parseFloat(raw)
+    if (isNaN(val) || val < 0) return
+    setSavingField(field)
+    try {
+      await onUpdate(category.id, field, raw)
+      setSavedField(field)
+      setTimeout(() => setSavedField(null), 1200)
+    } finally {
+      setSavingField(null)
+    }
+  }
 
   const isOver  = category.expected > 0 && category.actual > category.expected
   const pct     = category.expected > 0 ? Math.min(100, (category.actual / category.expected) * 100) : 0
 
   const numInput = 'h-7 px-2 rounded-md tabular-nums text-right focus:outline-none transition-colors'
-  const numStyle = { fontSize: '16px', background: 'var(--color-background)', border: '0.5px solid var(--color-border)', color: 'var(--color-foreground)' }
+
+  function fieldBorder(field: 'expected' | 'actual') {
+    if (savedField === field) return 'var(--color-positive)'
+    if (field === 'actual' && isOver) return 'var(--color-negative)'
+    return 'var(--color-border)'
+  }
+
+  const baseStyle = { fontSize: '16px', background: 'var(--color-background)', color: 'var(--color-foreground)' }
 
   return (
     <div className="flex flex-col group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
@@ -245,24 +267,26 @@ function BudgetCategoryRow({
         <input
           type="number" min="0" step="0.01" value={exp}
           onChange={e => setExp(e.target.value)}
-          onBlur={e => onUpdate(category.id, 'expected', e.target.value)}
+          onBlur={e => handleSave('expected', e.target.value)}
           className={`w-[88px] ${numInput}`}
-          style={numStyle}
+          style={{ ...baseStyle, border: `0.5px solid ${fieldBorder('expected')}`, transition: 'border-color 0.4s ease' }}
         />
         <input
           type="number" min="0" step="0.01" value={act}
           onChange={e => setAct(e.target.value)}
-          onBlur={e => onUpdate(category.id, 'actual', e.target.value)}
+          onBlur={e => handleSave('actual', e.target.value)}
           className={`w-[88px] ${numInput}`}
           style={{
-            ...numStyle,
-            border: `0.5px solid ${isOver ? 'var(--color-negative)' : 'var(--color-border)'}`,
+            ...baseStyle,
+            border: `0.5px solid ${fieldBorder('actual')}`,
             color: isOver ? 'var(--color-negative)' : 'var(--color-foreground)',
+            transition: 'border-color 0.4s ease',
           }}
         />
         <button
           type="button" onClick={() => onDelete(category.id)}
           className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+          aria-label={`Delete ${category.name}`}
           style={{ color: 'var(--color-muted)' }}
         >×</button>
       </div>

@@ -27,7 +27,7 @@ const numCls = 'w-[88px] h-7 px-2 rounded-md tabular-nums text-right focus:outli
 function NetWorthChart({ snapshots }: { snapshots: NetWorthSnapshot[] }) {
   if (snapshots.length < 2) return (
     <p className="text-[12px] py-2" style={{ color: 'var(--color-muted)' }}>
-      Record at least two snapshots to see the trend.
+      Take two monthly snapshots to start seeing your net worth trend.
     </p>
   )
   const values = snapshots.map(s => s.net_worth)
@@ -89,10 +89,16 @@ export default function WealthPage() {
   const savingsBalance = useMemo(() => assets.filter(a => a.type === 'savings').reduce((s, a) => s + a.balance, 0), [assets])
 
   async function handleSnapshot() {
+    const month = currentMonth()
+    const existing = snapshots.find(s => s.month === month)
+    if (existing) {
+      const ok = window.confirm(`A snapshot for ${month} already exists. Replace it?`)
+      if (!ok) return
+    }
     setSavingSnap(true)
     try {
       const snap = await createNetWorthSnapshot({
-        month: currentMonth(), total_assets: totalAssets, total_debt: totalDebt, net_worth: netWorth,
+        month, total_assets: totalAssets, total_debt: totalDebt, net_worth: netWorth,
       })
       setSnapshots(prev => [...prev.filter(s => s.month !== snap.month), snap].sort((a, b) => a.month.localeCompare(b.month)))
     } finally { setSavingSnap(false) }
@@ -123,13 +129,9 @@ export default function WealthPage() {
             <NetWorthChart snapshots={snapshots} />
             <div className="flex items-center justify-between mt-2">
               <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Updated monthly</span>
-              <button
-                onClick={handleSnapshot} disabled={savingSnap}
-                className="text-[11px] transition-opacity hover:opacity-75 disabled:opacity-40"
-                style={{ color: 'var(--color-primary)' }}
-              >
+              <Button size="sm" variant="ghost" intent="primary" onClick={handleSnapshot} disabled={savingSnap}>
                 {savingSnap ? 'Saving…' : 'Record snapshot'}
-              </button>
+              </Button>
             </div>
             {snapshots.length > 0 && (
               <div className="mt-2 pt-2" style={{ borderTop: '0.5px solid var(--color-border)' }}>
@@ -145,6 +147,7 @@ export default function WealthPage() {
                     <button
                       onClick={() => { setSnapshots(prev => prev.filter(x => x.id !== s.id)); deleteNetWorthSnapshot(s.id) }}
                       className="opacity-0 group-hover:opacity-100 transition-opacity text-[12px]"
+                      aria-label={`Delete ${s.month} snapshot`}
                       style={{ color: 'var(--color-muted)' }}
                     >×</button>
                   </div>
@@ -217,7 +220,7 @@ function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBal
           <span className="w-5" />
         </div>
         {pods.length === 0 ? (
-          <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No pods yet.</p>
+          <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No savings pods yet — add one to start tracking where your money is going.</p>
         ) : pods.map(p => (
           <SavingsPodRow
             key={p.id} pod={p}
@@ -248,15 +251,34 @@ function SavingsPodRow({ pod, onUpdate, onDelete }: {
 }) {
   const [allotted, setAllotted] = useState(String(pod.allotted))
   const [goal,     setGoal]     = useState(String(pod.goal))
+  const [savedField, setSavedField] = useState<'allotted' | 'goal' | null>(null)
+
   useEffect(() => { setAllotted(String(pod.allotted)) }, [pod.allotted])
   useEffect(() => { setGoal(String(pod.goal)) }, [pod.goal])
+
+  async function handleSave(field: 'allotted' | 'goal', raw: string) {
+    await onUpdate(pod.id, field, raw)
+    setSavedField(field)
+    setTimeout(() => setSavedField(null), 1200)
+  }
+
+  function fieldStyle(field: 'allotted' | 'goal') {
+    return {
+      fontSize: '16px',
+      background: 'var(--color-background)',
+      border: `0.5px solid ${savedField === field ? 'var(--color-positive)' : 'var(--color-border)'}`,
+      color: 'var(--color-foreground)',
+      transition: 'border-color 0.4s ease',
+    }
+  }
+
   return (
     <div className="flex flex-col group py-2" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
       <div className="flex items-center gap-2">
         <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>{pod.name}</span>
-        <input type="number" min="0" step="0.01" value={allotted} onChange={e => setAllotted(e.target.value)} onBlur={e => onUpdate(pod.id, 'allotted', e.target.value)} className={numCls} style={inputStyle} />
-        <input type="number" min="0" step="0.01" value={goal}     onChange={e => setGoal(e.target.value)}     onBlur={e => onUpdate(pod.id, 'goal',     e.target.value)} className={numCls} style={inputStyle} />
-        <button type="button" onClick={() => onDelete(pod.id)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-muted)' }}>×</button>
+        <input type="number" min="0" step="0.01" value={allotted} onChange={e => setAllotted(e.target.value)} onBlur={e => handleSave('allotted', e.target.value)} className={numCls} style={fieldStyle('allotted')} />
+        <input type="number" min="0" step="0.01" value={goal}     onChange={e => setGoal(e.target.value)}     onBlur={e => handleSave('goal',     e.target.value)} className={numCls} style={fieldStyle('goal')} />
+        <button type="button" onClick={() => onDelete(pod.id)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${pod.name} pod`} style={{ color: 'var(--color-muted)' }}>×</button>
       </div>
       {pod.goal > 0 && <div className="mt-1 mb-1"><ProgressBar value={Math.min(100, (pod.allotted / pod.goal) * 100)} intent="positive" /></div>}
     </div>
@@ -272,6 +294,7 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
   const [newType,    setNewType]    = useState('checking')
   const [newBalance, setNewBalance] = useState('')
   const [adding,     setAdding]     = useState(false)
+  const [savedId,    setSavedId]    = useState<string | null>(null)
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -290,7 +313,7 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
       <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Assets</h2>
       <Card className="mb-4">
         {assets.length === 0 ? (
-          <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No assets yet.</p>
+          <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No assets yet — add accounts, investments, or property.</p>
         ) : assets.map(a => (
           <div key={a.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
             <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{a.name}</span>
@@ -303,11 +326,14 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
                 if (!isNaN(val)) {
                   const updated = await updateAsset(a.id, { balance: val } as AssetUpdate)
                   setAssets(prev => prev.map(x => x.id === a.id ? updated : x))
+                  setSavedId(a.id)
+                  setTimeout(() => setSavedId(prev => prev === a.id ? null : prev), 1200)
                 }
               }}
-              className={numCls} style={inputStyle}
+              className={numCls}
+              style={{ ...inputStyle, border: `0.5px solid ${savedId === a.id ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
             />
-            <button type="button" onClick={() => { setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-muted)' }}>×</button>
+            <button type="button" onClick={() => { setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${a.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
           </div>
         ))}
       </Card>
@@ -332,6 +358,7 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
   const [newOwner,  setNewOwner]  = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [adding,    setAdding]    = useState(false)
+  const [savedId,   setSavedId]   = useState<string | null>(null)
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -350,7 +377,7 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
       <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Debts</h2>
       <Card className="mb-4">
         {debts.length === 0 ? (
-          <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No debts.</p>
+          <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No debts recorded — add loans or credit card balances.</p>
         ) : debts.map(d => (
           <div key={d.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
             <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{d.name}</span>
@@ -363,11 +390,14 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
                 if (!isNaN(val)) {
                   const updated = await updateDebt(d.id, { amount_owed: val } as DebtUpdate)
                   setDebts(prev => prev.map(x => x.id === d.id ? updated : x))
+                  setSavedId(d.id)
+                  setTimeout(() => setSavedId(prev => prev === d.id ? null : prev), 1200)
                 }
               }}
-              className={numCls} style={{ ...inputStyle, color: 'var(--color-negative)' }}
+              className={numCls}
+              style={{ ...inputStyle, color: 'var(--color-negative)', border: `0.5px solid ${savedId === d.id ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
             />
-            <button type="button" onClick={() => { setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-muted)' }}>×</button>
+            <button type="button" onClick={() => { setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${d.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
           </div>
         ))}
       </Card>

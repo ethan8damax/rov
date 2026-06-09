@@ -160,7 +160,7 @@ function IncomeSection({ month, incomes, setIncomes, owners }: {
         <span className="w-5" />
       </div>
       {incomes.length === 0 ? (
-        <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No income sources this month.</p>
+        <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No income sources for this month yet — add one below.</p>
       ) : (
         <>
           {incomes.map(inc => (
@@ -197,17 +197,36 @@ function IncomeRow({ source, onUpdate, onDelete }: {
 }) {
   const [exp, setExp] = useState(String(source.expected))
   const [act, setAct] = useState(String(source.actual))
+  const [savedField, setSavedField] = useState<'expected' | 'actual' | null>(null)
+
   useEffect(() => { setExp(String(source.expected)) }, [source.expected])
   useEffect(() => { setAct(String(source.actual))   }, [source.actual])
+
+  async function handleSave(field: 'expected' | 'actual', raw: string) {
+    await onUpdate(source.id, field, raw)
+    setSavedField(field)
+    setTimeout(() => setSavedField(null), 1200)
+  }
+
+  function fieldStyle(field: 'expected' | 'actual') {
+    return {
+      fontSize: '16px',
+      background: 'var(--color-background)',
+      border: `0.5px solid ${savedField === field ? 'var(--color-positive)' : 'var(--color-border)'}`,
+      color: 'var(--color-foreground)',
+      transition: 'border-color 0.4s ease',
+    }
+  }
+
   return (
     <div className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
       <div className="flex-1 min-w-0">
         <span className="text-[13px]" style={{ color: 'var(--color-foreground)' }}>{source.name}</span>
         <span className="ml-2 text-[11px]" style={{ color: 'var(--color-muted)' }}>{source.owner}</span>
       </div>
-      <input type="number" min="0" step="0.01" value={exp} onChange={e => setExp(e.target.value)} onBlur={e => onUpdate(source.id, 'expected', e.target.value)} className={numCls} style={inputStyle} />
-      <input type="number" min="0" step="0.01" value={act} onChange={e => setAct(e.target.value)} onBlur={e => onUpdate(source.id, 'actual',   e.target.value)} className={numCls} style={inputStyle} />
-      <button type="button" onClick={() => onDelete(source.id)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--color-muted)' }}>×</button>
+      <input type="number" min="0" step="0.01" value={exp} onChange={e => setExp(e.target.value)} onBlur={e => handleSave('expected', e.target.value)} className={numCls} style={fieldStyle('expected')} />
+      <input type="number" min="0" step="0.01" value={act} onChange={e => setAct(e.target.value)} onBlur={e => handleSave('actual',   e.target.value)} className={numCls} style={fieldStyle('actual')} />
+      <button type="button" onClick={() => onDelete(source.id)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${source.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
     </div>
   )
 }
@@ -242,7 +261,7 @@ function RecurringSection({ recurrings, setRecurrings }: {
         {total > 0 && <span className="text-[13px] font-medium tabular-nums" style={{ color: 'var(--color-foreground-secondary)' }}>{fmtWhole(total)}/mo</span>}
       </div>
       {recurrings.length === 0 ? (
-        <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No recurring payments.</p>
+        <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No recurring payments yet — add bills you pay every month.</p>
       ) : recurrings.map(r => (
         <div key={r.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
           <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{r.name}</span>
@@ -251,13 +270,14 @@ function RecurringSection({ recurrings, setRecurrings }: {
             type="button"
             onClick={() => { setRecurrings(prev => prev.filter(x => x.id !== r.id)); deleteRecurringPayment(r.id) }}
             className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label={`Delete ${r.name}`}
             style={{ color: 'var(--color-muted)' }}
           >×</button>
         </div>
       ))}
       <form onSubmit={handleAdd} className="flex gap-2 mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
         <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Name (e.g. Spotify)" className={`flex-1 min-w-0 ${inputCls}`} style={inputStyle} />
-        <input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Amount" className={`w-[88px] ${inputCls}`} style={inputStyle} />
+        <input type="number" min="0.01" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Amount" className={`w-[96px] ${inputCls}`} style={inputStyle} />
         <Button type="submit" size="sm" disabled={!newName.trim() || !(parseFloat(newAmount) > 0) || adding}>Add</Button>
       </form>
     </Card>

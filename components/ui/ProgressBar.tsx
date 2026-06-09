@@ -22,10 +22,12 @@ export default function ProgressBar({ value, intent = 'primary' }: ProgressBarPr
       <div
         style={{
           height: '100%',
-          width: `${clamped}%`,
+          width: '100%',
           background: intentColor[intent],
           borderRadius: '99px',
-          transition: 'width 0.3s ease',
+          transform: `scaleX(${clamped / 100})`,
+          transformOrigin: 'left',
+          transition: 'transform 0.3s ease',
         }}
       />
     </div>
