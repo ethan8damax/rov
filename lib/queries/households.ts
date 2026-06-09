@@ -65,29 +65,3 @@ export async function createInvite(householdId: string): Promise<string> {
   if (error) throw error
   return token
 }
-
-export async function redeemInvite(token: string, displayName: string): Promise<void> {
-  const supabase = createClient()
-  const { data: { user }, error: authErr } = await supabase.auth.getUser()
-  if (authErr || !user) throw new Error('Not authenticated')
-
-  const { data: invite, error: invErr } = await supabase
-    .from('household_invites')
-    .select('*')
-    .eq('token', token)
-    .maybeSingle()
-  if (invErr) throw invErr
-  if (!invite) throw new Error('Invalid invite link')
-  if (invite.used_at) throw new Error('This invite has already been used')
-  if (new Date(invite.expires_at) < new Date()) throw new Error('This invite has expired')
-
-  const { error: mErr } = await supabase
-    .from('household_members')
-    .insert({ household_id: invite.household_id, user_id: user.id, display_name: displayName })
-  if (mErr) throw mErr
-
-  await supabase
-    .from('household_invites')
-    .update({ used_at: new Date().toISOString() })
-    .eq('id', invite.id)
-}
