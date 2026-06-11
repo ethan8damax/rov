@@ -21,7 +21,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 export default function SettingsPage() {
-  const { householdId } = useAuth()
+  const { householdId, loading: authLoading } = useAuth()
   const [month,      setMonth]      = useState(() => currentMonth())
   const [incomes,    setIncomes]    = useState<IncomeSource[]>([])
   const [recurrings, setRecurrings] = useState<RecurringPayment[]>([])
@@ -32,6 +32,7 @@ export default function SettingsPage() {
   const [inviting,   setInviting]   = useState(false)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     setLoading(true); setError(null)
     try {
       const [inc, rec, names] = await Promise.all([
@@ -41,9 +42,9 @@ export default function SettingsPage() {
       ])
       setIncomes(inc); setRecurrings(rec); setOwners(names)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
     } finally { setLoading(false) }
-  }, [month])
+  }, [month, authLoading])
 
   useEffect(() => { load() }, [load])
 

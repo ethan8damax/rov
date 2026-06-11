@@ -69,6 +69,11 @@ export async function getTransactionSumsByCategory(
   month: string,
 ): Promise<{ category_id: string; total: number }[]> {
   const supabase = createClient()
+  const [year, mon] = month.split('-').map(Number)
+  const nextMonth = mon === 12
+    ? `${year + 1}-01`
+    : `${year}-${String(mon + 1).padStart(2, '0')}`
+
   const { data, error } = await supabase
     .from('transactions')
     .select('category_id, amount')
@@ -76,7 +81,7 @@ export async function getTransactionSumsByCategory(
     .eq('is_pending', false)
     .not('category_id', 'is', null)
     .gte('date', `${month}-01`)
-    .lte('date', `${month}-31`)
+    .lt('date',  `${nextMonth}-01`)
   if (error) throw error
 
   const totals: Record<string, number> = {}

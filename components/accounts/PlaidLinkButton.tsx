@@ -49,6 +49,7 @@ export default function PlaidLinkButton({ onConnected }: PlaidLinkButtonProps) {
       const data = await res.json()
       if (!res.ok || !data.link_token) throw new Error(data.error ?? 'Failed to get link token')
       setLinkToken(data.link_token)
+      setFetching(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start bank connection')
       setFetching(false)
