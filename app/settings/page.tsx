@@ -227,7 +227,7 @@ function IncomeRow({ source, onUpdate, onDelete }: {
       </div>
       <input type="number" min="0" step="0.01" value={exp} onChange={e => setExp(e.target.value)} onBlur={e => handleSave('expected', e.target.value)} className={numCls} style={fieldStyle('expected')} />
       <input type="number" min="0" step="0.01" value={act} onChange={e => setAct(e.target.value)} onBlur={e => handleSave('actual',   e.target.value)} className={numCls} style={fieldStyle('actual')} />
-      <button type="button" onClick={() => onDelete(source.id)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${source.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
+      <button type="button" onClick={() => { if (window.confirm(`Delete "${source.name}"?`)) onDelete(source.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${source.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
     </div>
   )
 }
@@ -269,7 +269,7 @@ function RecurringSection({ recurrings, setRecurrings }: {
           <span className="text-[13px] tabular-nums" style={{ color: 'var(--color-foreground-secondary)' }}>{fmtWhole(r.amount)}</span>
           <button
             type="button"
-            onClick={() => { setRecurrings(prev => prev.filter(x => x.id !== r.id)); deleteRecurringPayment(r.id) }}
+            onClick={() => { if (!window.confirm(`Delete "${r.name}"?`)) return; setRecurrings(prev => prev.filter(x => x.id !== r.id)); deleteRecurringPayment(r.id) }}
             className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
             aria-label={`Delete ${r.name}`}
             style={{ color: 'var(--color-muted)' }}

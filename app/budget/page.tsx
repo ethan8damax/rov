@@ -332,7 +332,8 @@ function BudgetCategoryRow({
           }}
         />
         <button
-          type="button" onClick={() => onDelete(category.id)}
+          type="button"
+          onClick={() => { if (window.confirm(`Delete "${category.name}"?`)) onDelete(category.id) }}
           className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
           aria-label={`Delete ${category.name}`}
           style={{ color: 'var(--color-muted)' }}

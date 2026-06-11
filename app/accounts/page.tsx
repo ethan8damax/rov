@@ -119,7 +119,11 @@ export default function AccountsPage() {
       ) : (
         <div className="flex flex-col gap-2 mb-6">
           {accounts.map(acct => (
-            <AccountCard key={acct.account_id} account={acct} />
+            <AccountCard
+              key={acct.account_id}
+              account={acct}
+              onDisconnected={() => { loadAccounts(); loadTransactions() }}
+            />
           ))}
         </div>
       )}

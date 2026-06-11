@@ -6,7 +6,8 @@ import { fmt } from '@/lib/utils'
 import { updateAccountName } from '@/lib/queries/accounts'
 
 interface AccountCardProps {
-  account: AccountWithBalance
+  account:          AccountWithBalance
+  onDisconnected?:  () => void
 }
 
 function typeLabel(type: string, subtype: string): string {
@@ -14,14 +15,30 @@ function typeLabel(type: string, subtype: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1).replace(/_/g, ' ')
 }
 
-export default function AccountCard({ account }: AccountCardProps) {
-  const [name,    setName]    = useState(account.name)
-  const [editing, setEditing] = useState(false)
-  const [draft,   setDraft]   = useState(account.name)
+export default function AccountCard({ account, onDisconnected }: AccountCardProps) {
+  const [name,         setName]         = useState(account.name)
+  const [editing,      setEditing]      = useState(false)
+  const [draft,        setDraft]        = useState(account.name)
+  const [disconnecting, setDisconnecting] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const balance  = account.balances.current ?? account.balances.available
   const isCredit = account.type === 'credit'
+
+  async function handleDisconnect() {
+    if (!window.confirm(`Disconnect ${name}? This will remove all transactions from this bank.`)) return
+    setDisconnecting(true)
+    try {
+      await fetch('/api/plaid/disconnect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: account.account_id }),
+      })
+      onDisconnected?.()
+    } finally {
+      setDisconnecting(false)
+    }
+  }
 
   function startEdit() {
     setDraft(name)
@@ -86,6 +103,15 @@ export default function AccountCard({ account }: AccountCardProps) {
         )}
         <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-muted)' }}>
           {account.institution_name} · {typeLabel(account.type, account.subtype)}
+          {' · '}
+          <button
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            className="underline disabled:opacity-40"
+            style={{ color: 'var(--color-negative)' }}
+          >
+            {disconnecting ? 'Removing…' : 'Remove'}
+          </button>
         </p>
       </div>
 
