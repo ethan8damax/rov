@@ -48,7 +48,7 @@ export default function SpendingTrendChart({ data, currentMonth }: SpendingTrend
             fontSize:     '12px',
             color:        'var(--color-foreground)',
           }}
-          formatter={(value: number) => [`$${value.toFixed(0)}`, 'Spent']}
+          formatter={(value) => [`$${Number(value ?? 0).toFixed(0)}`, 'Spent']}
         />
         <Bar dataKey="actual" radius={[3, 3, 0, 0]}>
           {data.map(entry => (

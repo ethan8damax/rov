@@ -33,7 +33,7 @@ export async function getTransactions(
     date:           t.date,
     is_pending:     t.is_pending,
     category_id:    t.category_id,
-    category_name:  (t.budget_categories as { name: string } | null)?.name ?? null,
+    category_name:  (t.budget_categories as { name: string }[] | null)?.[0]?.name ?? null,
   }))
 }
 
