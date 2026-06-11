@@ -4,8 +4,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import Button from '@/components/ui/Button'
 
-// Separate component so usePlaidLink is only called once we have a real token.
-// Calling it with token='' causes silent failure and the hook won't reinitialize.
+// Inner component: only mounts once we have a real token so the hook initializes cleanly.
 function PlaidLinkInner({
   token,
   onConnected,
@@ -39,6 +38,14 @@ function PlaidLinkInner({
     if (ready) open()
   }, [ready, open])
 
+  // Safety valve: if the Plaid SDK never signals ready (blocked by browser, network issue,
+  // etc.) reset after 25s so the button doesn't stay stuck forever.
+  useEffect(() => {
+    if (ready) return
+    const id = setTimeout(onExit, 25_000)
+    return () => clearTimeout(id)
+  }, [ready, onExit])
+
   return null
 }
 
@@ -54,6 +61,7 @@ export default function PlaidLinkButton({ onConnected }: { onConnected: () => vo
       const res  = await fetch('/api/plaid/link-token', { method: 'POST' })
       const data = await res.json()
       if (!res.ok || !data.link_token) throw new Error(data.error ?? 'Failed to get link token')
+      setFetching(false)
       setLinkToken(data.link_token)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start bank connection')
@@ -72,14 +80,25 @@ export default function PlaidLinkButton({ onConnected }: { onConnected: () => vo
     onConnected()
   }
 
+  const busy = fetching || linkToken !== null
+
   return (
     <div>
       {linkToken && (
         <PlaidLinkInner token={linkToken} onConnected={handleConnected} onExit={handleExit} />
       )}
-      <Button onClick={handleClick} disabled={fetching} size="sm">
+      <Button onClick={handleClick} disabled={busy} size="sm">
         {fetching ? 'Loading…' : 'Connect a bank'}
       </Button>
+      {busy && !fetching && (
+        <button
+          onClick={handleExit}
+          className="block text-[11px] mt-1 underline"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          Cancel
+        </button>
+      )}
       {error && (
         <p className="text-[12px] mt-1" style={{ color: 'var(--color-negative)' }}>{error}</p>
       )}
