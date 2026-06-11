@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useAuth } from '@/lib/context/auth'
 import {
   getSavingsPods, createSavingsPod, updateSavingsPod, deleteSavingsPod,
   getAssets, createAsset, updateAsset, deleteAsset,
@@ -61,6 +62,7 @@ function NetWorthChart({ snapshots }: { snapshots: NetWorthSnapshot[] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function WealthPage() {
+  const { loading: authLoading } = useAuth()
   const [pods,       setPods]      = useState<SavingsPod[]>([])
   const [assets,     setAssets]    = useState<Asset[]>([])
   const [debts,      setDebts]     = useState<Debt[]>([])
@@ -70,14 +72,15 @@ export default function WealthPage() {
   const [savingSnap, setSavingSnap] = useState(false)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     setLoading(true); setError(null)
     try {
       const [p, a, d, s] = await Promise.all([getSavingsPods(), getAssets(), getDebts(), getNetWorthSnapshots()])
       setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
     } finally { setLoading(false) }
-  }, [])
+  }, [authLoading])
 
   useEffect(() => { load() }, [load])
 

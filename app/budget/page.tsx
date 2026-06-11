@@ -24,7 +24,7 @@ const DEFAULT_CATEGORIES = [
 ]
 
 export default function BudgetPage() {
-  const { householdId } = useAuth()
+  const { householdId, loading: authLoading } = useAuth()
   const [month,          setMonth]          = useState(() => currentMonth())
   const [categories,     setCategories]     = useState<BudgetCategory[]>([])
   const [totalIncome,    setTotalIncome]    = useState(0)
@@ -38,6 +38,7 @@ export default function BudgetPage() {
   const [showTrends,     setShowTrends]     = useState(false)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     setLoading(true); setError(null)
     try {
       const trendMonths = getPastMonths(month, 6)
@@ -52,11 +53,12 @@ export default function BudgetPage() {
       setPastCategories(pastCats)
       setBankSums(sums)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load'
+      setError(msg)
     } finally {
       setLoading(false)
     }
-  }, [month, householdId])
+  }, [month, householdId, authLoading])
 
   useEffect(() => { load() }, [load])
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useAuth } from '@/lib/context/auth'
 import { getBudgetCategories, getIncomeSources } from '@/lib/queries/finance'
 import { getSavingsPods, getAssets, getDebts, getNetWorthSnapshots } from '@/lib/queries/wealth'
 import { currentMonth, fmtWhole } from '@/lib/utils'
@@ -14,6 +15,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 export default function HomePage() {
+  const { loading: authLoading } = useAuth()
   const month = currentMonth()
 
   const [categories,  setCategories]  = useState<BudgetCategory[]>([])
@@ -26,6 +28,7 @@ export default function HomePage() {
   const [error,       setError]       = useState<string | null>(null)
 
   const load = useCallback(async () => {
+    if (authLoading) return
     setLoading(true); setError(null)
     try {
       const [cats, incs, p, a, d, s] = await Promise.all([
@@ -40,9 +43,9 @@ export default function HomePage() {
       setTotalIncome(incs.reduce((sum, i) => sum + i.expected, 0))
       setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load')
+      setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
     } finally { setLoading(false) }
-  }, [month])
+  }, [month, authLoading])
 
   useEffect(() => { load() }, [load])
 
