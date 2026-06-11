@@ -1,12 +1,140 @@
+'use client'
+
+import { useState, useEffect, useCallback } from 'react'
+import { useAuth } from '@/lib/context/auth'
+import { getTransactions } from '@/lib/queries/accounts'
+import type { TransactionWithCategory } from '@/lib/queries/accounts'
+import { getBudgetCategories } from '@/lib/queries/finance'
+import { currentMonth } from '@/lib/utils'
+import type { AccountWithBalance, BudgetCategory } from '@/types'
+import Card from '@/components/ui/Card'
+import Button from '@/components/ui/Button'
+import PlaidLinkButton from '@/components/accounts/PlaidLinkButton'
+import AccountCard from '@/components/accounts/AccountCard'
+import TransactionList from '@/components/accounts/TransactionList'
+
 export default function AccountsPage() {
+  const { householdId } = useAuth()
+  const [accounts,     setAccounts]     = useState<AccountWithBalance[]>([])
+  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
+  const [categories,   setCategories]   = useState<BudgetCategory[]>([])
+  const [loadingAcct,  setLoadingAcct]  = useState(true)
+  const [loadingTx,    setLoadingTx]    = useState(true)
+  const [syncing,      setSyncing]      = useState(false)
+  const [syncMsg,      setSyncMsg]      = useState<string | null>(null)
+  const [error,        setError]        = useState<string | null>(null)
+  const month = currentMonth()
+
+  const loadAccounts = useCallback(async () => {
+    setLoadingAcct(true)
+    try {
+      const res  = await fetch('/api/plaid/accounts')
+      const data = await res.json()
+      setAccounts(data.accounts ?? [])
+    } catch {
+      setError('Failed to load accounts')
+    } finally {
+      setLoadingAcct(false)
+    }
+  }, [])
+
+  const loadTransactions = useCallback(async () => {
+    if (!householdId) return
+    setLoadingTx(true)
+    try {
+      const [txs, cats] = await Promise.all([
+        getTransactions(householdId),
+        getBudgetCategories(month),
+      ])
+      setTransactions(txs)
+      setCategories(cats)
+    } catch {
+      setError('Failed to load transactions')
+    } finally {
+      setLoadingTx(false)
+    }
+  }, [householdId, month])
+
+  useEffect(() => {
+    loadAccounts()
+    loadTransactions()
+  }, [loadAccounts, loadTransactions])
+
+  async function handleSync() {
+    setSyncing(true)
+    setSyncMsg(null)
+    setError(null)
+    try {
+      const res  = await fetch('/api/plaid/transactions')
+      const data = await res.json()
+      setSyncMsg(`Synced ${data.synced ?? 0} new transactions`)
+      await loadTransactions()
+    } catch {
+      setError('Sync failed — please try again')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  function handleConnected() {
+    loadAccounts()
+    loadTransactions()
+  }
+
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-[20px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>
-        Accounts
-      </h1>
-      <p className="text-[13px]" style={{ color: 'var(--color-muted)' }}>
-        Bank account connection coming soon. Add income sources and track spending manually in the budget and settings pages.
-      </p>
+    <div className="p-4 md:p-6 max-w-2xl mx-auto">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>
+          Accounts
+        </h1>
+        <div className="flex items-center gap-2">
+          {accounts.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={handleSync} disabled={syncing}>
+              {syncing ? 'Syncing…' : 'Sync'}
+            </Button>
+          )}
+          <PlaidLinkButton onConnected={handleConnected} />
+        </div>
+      </div>
+
+      {error && (
+        <p className="text-[13px] mb-4" style={{ color: 'var(--color-negative)' }}>{error}</p>
+      )}
+      {syncMsg && (
+        <p className="text-[13px] mb-4" style={{ color: 'var(--color-positive)' }}>{syncMsg}</p>
+      )}
+
+      {loadingAcct ? (
+        <div className="flex flex-col gap-2 mb-6">
+          {[0, 1].map(i => (
+            <div key={i} className="h-16 rounded-xl animate-pulse" style={{ background: 'var(--color-surface)' }} />
+          ))}
+        </div>
+      ) : accounts.length === 0 ? (
+        <Card className="mb-6">
+          <p className="text-[13px]" style={{ color: 'var(--color-muted)' }}>
+            No banks connected yet. Connect your first account to see live balances and your transaction history.
+          </p>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-2 mb-6">
+          {accounts.map(acct => (
+            <AccountCard key={acct.account_id} account={acct} />
+          ))}
+        </div>
+      )}
+
+      <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>
+        Transactions
+      </h2>
+      {householdId && (
+        <TransactionList
+          transactions={transactions}
+          categories={categories}
+          householdId={householdId}
+          loading={loadingTx}
+        />
+      )}
     </div>
   )
 }
