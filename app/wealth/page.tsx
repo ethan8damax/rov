@@ -20,6 +20,32 @@ function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg ${className}`} style={{ background: 'var(--color-surface)' }} />
 }
 
+function InlineDelete({ onDelete, label }: { onDelete: () => void; label: string }) {
+  const [confirming, setConfirming] = useState(false)
+  if (confirming) return (
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={onDelete} className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-negative-subtle)', color: 'var(--color-negative)' }}>Delete</button>
+      <button type="button" onClick={() => setConfirming(false)} className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+    </div>
+  )
+  return (
+    <button type="button" onClick={() => setConfirming(true)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${label}`} style={{ color: 'var(--color-muted)' }}>×</button>
+  )
+}
+
+function SnapshotDeleteButton({ label, onDelete }: { label: string; onDelete: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  if (confirming) return (
+    <div className="flex items-center gap-1.5">
+      <button type="button" onClick={onDelete} className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-negative-subtle)', color: 'var(--color-negative)' }}>Delete</button>
+      <button type="button" onClick={() => setConfirming(false)} className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+    </div>
+  )
+  return (
+    <button onClick={() => setConfirming(true)} className="opacity-0 group-hover:opacity-100 transition-opacity text-[12px]" aria-label={`Delete ${label} snapshot`} style={{ color: 'var(--color-muted)' }}>×</button>
+  )
+}
+
 const inputCls = 'h-8 px-3 rounded-lg focus:outline-none transition-colors'
 const inputStyle = { fontSize: '16px', background: 'var(--color-background)', border: '0.5px solid var(--color-border)', color: 'var(--color-foreground)' }
 const numCls = 'w-[88px] h-7 px-2 rounded-md tabular-nums text-right focus:outline-none transition-colors'
@@ -198,12 +224,10 @@ export default function WealthPage() {
                     >
                       {s.net_worth < 0 ? '−' : '+'}{fmtWhole(Math.abs(s.net_worth))}
                     </span>
-                    <button
-                      onClick={() => { if (!window.confirm(`Delete ${s.month} snapshot?`)) return; setSnapshots(prev => prev.filter(x => x.id !== s.id)); deleteNetWorthSnapshot(s.id) }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[12px]"
-                      aria-label={`Delete ${s.month} snapshot`}
-                      style={{ color: 'var(--color-muted)' }}
-                    >×</button>
+                    <SnapshotDeleteButton
+                      label={s.month}
+                      onDelete={() => { setSnapshots(prev => prev.filter(x => x.id !== s.id)); deleteNetWorthSnapshot(s.id) }}
+                    />
                   </div>
                 ))}
               </div>
@@ -332,7 +356,7 @@ function SavingsPodRow({ pod, onUpdate, onDelete }: {
         <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>{pod.name}</span>
         <input type="number" min="0" step="0.01" value={allotted} onChange={e => setAllotted(e.target.value)} onBlur={e => handleSave('allotted', e.target.value)} className={numCls} style={fieldStyle('allotted')} />
         <input type="number" min="0" step="0.01" value={goal}     onChange={e => setGoal(e.target.value)}     onBlur={e => handleSave('goal',     e.target.value)} className={numCls} style={fieldStyle('goal')} />
-        <button type="button" onClick={() => { if (window.confirm(`Delete "${pod.name}" pod?`)) onDelete(pod.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${pod.name} pod`} style={{ color: 'var(--color-muted)' }}>×</button>
+        <InlineDelete onDelete={() => onDelete(pod.id)} label={pod.name} />
       </div>
       {pod.goal > 0 && <div className="mt-1 mb-1"><ProgressBar value={Math.min(100, (pod.allotted / pod.goal) * 100)} intent="positive" /></div>}
     </div>
@@ -387,7 +411,7 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
               className={numCls}
               style={{ ...inputStyle, border: `0.5px solid ${savedId === a.id ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
             />
-            <button type="button" onClick={() => { if (!window.confirm(`Delete "${a.name}"?`)) return; setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${a.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
+            <InlineDelete onDelete={() => { setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }} label={a.name} />
           </div>
         ))}
       </Card>
@@ -451,7 +475,7 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
               className={numCls}
               style={{ ...inputStyle, color: 'var(--color-negative)', border: `0.5px solid ${savedId === d.id ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
             />
-            <button type="button" onClick={() => { if (!window.confirm(`Delete "${d.name}"?`)) return; setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${d.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
+            <InlineDelete onDelete={() => { setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }} label={d.name} />
           </div>
         ))}
       </Card>

@@ -274,8 +274,9 @@ function BudgetCategoryRow({
 }) {
   const [exp, setExp] = useState(String(category.expected))
   const [act, setAct] = useState(String(category.actual))
-  const [savingField, setSavingField] = useState<'expected' | 'actual' | null>(null)
-  const [savedField,  setSavedField]  = useState<'expected' | 'actual' | null>(null)
+  const [savingField,    setSavingField]    = useState<'expected' | 'actual' | null>(null)
+  const [savedField,     setSavedField]     = useState<'expected' | 'actual' | null>(null)
+  const [confirmDelete,  setConfirmDelete]  = useState(false)
 
   useEffect(() => { setExp(String(category.expected)) }, [category.expected])
   useEffect(() => { setAct(String(category.actual))   }, [category.actual])
@@ -331,13 +332,20 @@ function BudgetCategoryRow({
             transition: 'border-color 0.4s ease',
           }}
         />
-        <button
-          type="button"
-          onClick={() => { if (window.confirm(`Delete "${category.name}"?`)) onDelete(category.id) }}
-          className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label={`Delete ${category.name}`}
-          style={{ color: 'var(--color-muted)' }}
-        >×</button>
+        {confirmDelete ? (
+          <div className="flex items-center gap-1.5 ml-1">
+            <button type="button" onClick={() => onDelete(category.id)} className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-negative-subtle)', color: 'var(--color-negative)' }}>Delete</button>
+            <button type="button" onClick={() => setConfirmDelete(false)} className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label={`Delete ${category.name}`}
+            style={{ color: 'var(--color-muted)' }}
+          >×</button>
+        )}
       </div>
       {bankSum !== null && bankSum > 0 && (
         <div className="flex items-center gap-2 pb-1">

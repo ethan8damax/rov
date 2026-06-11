@@ -90,32 +90,7 @@ export default function SettingsPage() {
 
           {/* Merchant rules */}
           {rules.length > 0 && (
-            <section className="mb-8">
-              <h2 className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-foreground)' }}>Merchant rules</h2>
-              <p className="text-[12px] mb-3" style={{ color: 'var(--color-muted)' }}>
-                Auto-categorization rules saved from your transaction history. Delete a rule to stop it from applying.
-              </p>
-              <Card>
-                {rules.map(rule => (
-                  <div key={rule.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
-                    <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>{rule.merchant_name}</span>
-                    <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>→</span>
-                    <span className="text-[13px] truncate max-w-[120px]" style={{ color: 'var(--color-foreground-secondary)' }}>{rule.category_name}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!window.confirm(`Remove rule for "${rule.merchant_name}"?`)) return
-                        setRules(prev => prev.filter(r => r.id !== rule.id))
-                        deleteMerchantRule(rule.id)
-                      }}
-                      className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
-                      aria-label={`Delete rule for ${rule.merchant_name}`}
-                      style={{ color: 'var(--color-muted)' }}
-                    >×</button>
-                  </div>
-                ))}
-              </Card>
-            </section>
+            <MerchantRulesSection rules={rules} setRules={setRules} />
           )}
 
           {/* Invite */}
@@ -229,9 +204,10 @@ function IncomeRow({ source, onUpdate, onDelete }: {
   onUpdate: (id: string, f: 'expected' | 'actual', v: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
-  const [exp, setExp] = useState(String(source.expected))
-  const [act, setAct] = useState(String(source.actual))
-  const [savedField, setSavedField] = useState<'expected' | 'actual' | null>(null)
+  const [exp,           setExp]           = useState(String(source.expected))
+  const [act,           setAct]           = useState(String(source.actual))
+  const [savedField,    setSavedField]    = useState<'expected' | 'actual' | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   useEffect(() => { setExp(String(source.expected)) }, [source.expected])
   useEffect(() => { setAct(String(source.actual))   }, [source.actual])
@@ -260,7 +236,14 @@ function IncomeRow({ source, onUpdate, onDelete }: {
       </div>
       <input type="number" min="0" step="0.01" value={exp} onChange={e => setExp(e.target.value)} onBlur={e => handleSave('expected', e.target.value)} className={numCls} style={fieldStyle('expected')} />
       <input type="number" min="0" step="0.01" value={act} onChange={e => setAct(e.target.value)} onBlur={e => handleSave('actual',   e.target.value)} className={numCls} style={fieldStyle('actual')} />
-      <button type="button" onClick={() => { if (window.confirm(`Delete "${source.name}"?`)) onDelete(source.id) }} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${source.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
+      {confirmDelete ? (
+        <div className="flex items-center gap-1.5">
+          <button type="button" onClick={() => onDelete(source.id)} className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-negative-subtle)', color: 'var(--color-negative)' }}>Delete</button>
+          <button type="button" onClick={() => setConfirmDelete(false)} className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setConfirmDelete(true)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Delete ${source.name}`} style={{ color: 'var(--color-muted)' }}>×</button>
+      )}
     </div>
   )
 }
@@ -271,9 +254,10 @@ function RecurringSection({ recurrings, setRecurrings }: {
   recurrings: RecurringPayment[]
   setRecurrings: React.Dispatch<React.SetStateAction<RecurringPayment[]>>
 }) {
-  const [newName,   setNewName]   = useState('')
-  const [newAmount, setNewAmount] = useState('')
-  const [adding,    setAdding]    = useState(false)
+  const [newName,        setNewName]        = useState('')
+  const [newAmount,      setNewAmount]      = useState('')
+  const [adding,         setAdding]         = useState(false)
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
   const total = recurrings.reduce((s, r) => s + r.amount, 0)
 
   async function handleAdd(e: React.FormEvent) {
@@ -300,13 +284,20 @@ function RecurringSection({ recurrings, setRecurrings }: {
         <div key={r.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
           <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{r.name}</span>
           <span className="text-[13px] tabular-nums" style={{ color: 'var(--color-foreground-secondary)' }}>{fmtWhole(r.amount)}</span>
-          <button
-            type="button"
-            onClick={() => { if (!window.confirm(`Delete "${r.name}"?`)) return; setRecurrings(prev => prev.filter(x => x.id !== r.id)); deleteRecurringPayment(r.id) }}
-            className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
-            aria-label={`Delete ${r.name}`}
-            style={{ color: 'var(--color-muted)' }}
-          >×</button>
+          {pendingDeleteId === r.id ? (
+            <div className="flex items-center gap-1.5">
+              <button type="button" onClick={() => { setRecurrings(prev => prev.filter(x => x.id !== r.id)); deleteRecurringPayment(r.id); setPendingDeleteId(null) }} className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-negative-subtle)', color: 'var(--color-negative)' }}>Delete</button>
+              <button type="button" onClick={() => setPendingDeleteId(null)} className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPendingDeleteId(r.id)}
+              className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+              aria-label={`Delete ${r.name}`}
+              style={{ color: 'var(--color-muted)' }}
+            >×</button>
+          )}
         </div>
       ))}
       <form onSubmit={handleAdd} className="flex gap-2 mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
@@ -315,5 +306,40 @@ function RecurringSection({ recurrings, setRecurrings }: {
         <Button type="submit" size="sm" disabled={!newName.trim() || !(parseFloat(newAmount) > 0) || adding}>Add</Button>
       </form>
     </Card>
+  )
+}
+
+// ── Merchant rules ────────────────────────────────────────────────────────────
+
+function MerchantRulesSection({ rules, setRules }: {
+  rules: { id: string; merchant_name: string; category_name: string }[]
+  setRules: React.Dispatch<React.SetStateAction<{ id: string; merchant_name: string; category_name: string }[]>>
+}) {
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+  return (
+    <section className="mb-8">
+      <h2 className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-foreground)' }}>Merchant rules</h2>
+      <p className="text-[12px] mb-3" style={{ color: 'var(--color-muted)' }}>
+        Auto-categorization rules saved from your transaction history. Remove a rule to stop it from applying.
+      </p>
+      <Card>
+        {rules.map(rule => (
+          <div key={rule.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
+            <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>{rule.merchant_name}</span>
+            <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>→</span>
+            <span className="text-[13px] truncate max-w-[120px]" style={{ color: 'var(--color-foreground-secondary)' }}>{rule.category_name}</span>
+            {pendingDeleteId === rule.id ? (
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => { setRules(prev => prev.filter(r => r.id !== rule.id)); deleteMerchantRule(rule.id); setPendingDeleteId(null) }} className="text-[11px] px-1.5 py-0.5 rounded" style={{ background: 'var(--color-negative-subtle)', color: 'var(--color-negative)' }}>Remove</button>
+                <button type="button" onClick={() => setPendingDeleteId(null)} className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setPendingDeleteId(rule.id)} className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity" aria-label={`Remove rule for ${rule.merchant_name}`} style={{ color: 'var(--color-muted)' }}>×</button>
+            )}
+          </div>
+        ))}
+      </Card>
+    </section>
   )
 }

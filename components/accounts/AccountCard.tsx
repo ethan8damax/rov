@@ -16,17 +16,18 @@ function typeLabel(type: string, subtype: string): string {
 }
 
 export default function AccountCard({ account, onDisconnected }: AccountCardProps) {
-  const [name,         setName]         = useState(account.name)
-  const [editing,      setEditing]      = useState(false)
-  const [draft,        setDraft]        = useState(account.name)
-  const [disconnecting, setDisconnecting] = useState(false)
+  const [name,              setName]              = useState(account.name)
+  const [editing,           setEditing]           = useState(false)
+  const [draft,             setDraft]             = useState(account.name)
+  const [disconnecting,     setDisconnecting]     = useState(false)
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const balance  = account.balances.current ?? account.balances.available
   const isCredit = account.type === 'credit'
 
   async function handleDisconnect() {
-    if (!window.confirm(`Disconnect ${name}? This will remove all transactions from this bank.`)) return
+    setConfirmDisconnect(false)
     setDisconnecting(true)
     try {
       await fetch('/api/plaid/disconnect', {
@@ -104,14 +105,20 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
         <p className="text-[11px] mt-0.5" style={{ color: 'var(--color-muted)' }}>
           {account.institution_name} · {typeLabel(account.type, account.subtype)}
           {' · '}
-          <button
-            onClick={handleDisconnect}
-            disabled={disconnecting}
-            className="underline disabled:opacity-40"
-            style={{ color: 'var(--color-muted)' }}
-          >
-            {disconnecting ? 'Removing…' : 'Remove'}
-          </button>
+          {confirmDisconnect ? (
+            <>
+              <button onClick={handleDisconnect} disabled={disconnecting} className="underline disabled:opacity-40" style={{ color: 'var(--color-negative)' }}>
+                {disconnecting ? 'Removing…' : 'Confirm remove'}
+              </button>
+              {!disconnecting && (
+                <button onClick={() => setConfirmDisconnect(false)} className="ml-2 underline" style={{ color: 'var(--color-muted)' }}>Cancel</button>
+              )}
+            </>
+          ) : (
+            <button onClick={() => setConfirmDisconnect(true)} className="underline" style={{ color: 'var(--color-muted)' }}>
+              Remove
+            </button>
+          )}
         </p>
       </div>
 
