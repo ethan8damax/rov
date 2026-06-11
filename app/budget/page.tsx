@@ -3,13 +3,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory,
-  getIncomeSources, carryoverBudget,
+  getIncomeSources, carryoverBudget, getBudgetCategoriesPastMonths,
 } from '@/lib/queries/finance'
-import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole } from '@/lib/utils'
+import { getTransactionSumsByCategory } from '@/lib/queries/accounts'
+import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths } from '@/lib/utils'
 import type { BudgetCategory } from '@/types'
+import { useAuth } from '@/lib/context/auth'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import ProgressBar from '@/components/ui/ProgressBar'
+import SpendingTrendChart, { buildTrendPoints } from '@/components/budget/SpendingTrendChart'
 
 function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg ${className}`} style={{ background: 'var(--color-surface)' }} />
@@ -21,30 +24,39 @@ const DEFAULT_CATEGORIES = [
 ]
 
 export default function BudgetPage() {
-  const [month,       setMonth]       = useState(() => currentMonth())
-  const [categories,  setCategories]  = useState<BudgetCategory[]>([])
-  const [totalIncome, setTotalIncome] = useState(0)
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState<string | null>(null)
-  const [newName,     setNewName]     = useState('')
-  const [addingCat,   setAddingCat]   = useState(false)
-  const [carrying,    setCarrying]    = useState(false)
+  const { householdId } = useAuth()
+  const [month,          setMonth]          = useState(() => currentMonth())
+  const [categories,     setCategories]     = useState<BudgetCategory[]>([])
+  const [totalIncome,    setTotalIncome]    = useState(0)
+  const [loading,        setLoading]        = useState(true)
+  const [error,          setError]          = useState<string | null>(null)
+  const [newName,        setNewName]        = useState('')
+  const [addingCat,      setAddingCat]      = useState(false)
+  const [carrying,       setCarrying]       = useState(false)
+  const [pastCategories, setPastCategories] = useState<BudgetCategory[]>([])
+  const [bankSums,       setBankSums]       = useState<{ category_id: string; total: number }[]>([])
+  const [showTrends,     setShowTrends]     = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true); setError(null)
     try {
-      const [cats, incs] = await Promise.all([
+      const trendMonths = getPastMonths(month, 6)
+      const [cats, incs, pastCats, sums] = await Promise.all([
         getBudgetCategories(month),
         getIncomeSources(month),
+        getBudgetCategoriesPastMonths(trendMonths),
+        householdId ? getTransactionSumsByCategory(householdId, month) : Promise.resolve([]),
       ])
       setCategories(cats)
       setTotalIncome(incs.reduce((s, i) => s + i.expected, 0))
+      setPastCategories(pastCats)
+      setBankSums(sums)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load')
     } finally {
       setLoading(false)
     }
-  }, [month])
+  }, [month, householdId])
 
   useEffect(() => { load() }, [load])
 
@@ -83,8 +95,9 @@ export default function BudgetPage() {
     } finally { setCarrying(false) }
   }
 
-  const overBudget = categories.filter(c => c.expected > 0 && c.actual > c.expected)
+  const overBudget    = categories.filter(c => c.expected > 0 && c.actual > c.expected)
   const leftoverColor = leftover < 0 ? 'var(--color-negative)' : 'var(--color-foreground)'
+  const trendMonths   = getPastMonths(month, 6)
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -173,6 +186,7 @@ export default function BudgetPage() {
                 {categories.map(c => (
                   <BudgetCategoryRow
                     key={c.id} category={c}
+                    bankSum={bankSums.find(b => b.category_id === c.id)?.total ?? null}
                     onUpdate={handleUpdateField} onDelete={handleDelete}
                   />
                 ))}
@@ -211,6 +225,37 @@ export default function BudgetPage() {
               </div>
             </div>
           </Card>
+
+          {/* Spending trends */}
+          {categories.length > 0 && (
+            <div className="mt-8">
+              <button
+                className="flex items-center gap-2 text-[13px] mb-4"
+                style={{ color: 'var(--color-foreground-secondary)' }}
+                onClick={() => setShowTrends(t => !t)}
+              >
+                <span>{showTrends ? '▾' : '▸'}</span>
+                Spending trends
+              </button>
+              {showTrends && (
+                <div className="flex flex-col gap-6">
+                  {categories
+                    .filter(c => c.expected > 0)
+                    .map(c => {
+                      const data = buildTrendPoints(c.name, trendMonths, pastCategories)
+                      if (!data.some(d => d.actual > 0)) return null
+                      return (
+                        <div key={c.id}>
+                          <p className="text-[12px] mb-2" style={{ color: 'var(--color-muted)' }}>{c.name}</p>
+                          <SpendingTrendChart data={data} currentMonth={month} />
+                        </div>
+                      )
+                    })
+                    .filter(Boolean)}
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -218,9 +263,10 @@ export default function BudgetPage() {
 }
 
 function BudgetCategoryRow({
-  category, onUpdate, onDelete,
+  category, bankSum, onUpdate, onDelete,
 }: {
   category: BudgetCategory
+  bankSum: number | null
   onUpdate: (id: string, field: 'expected' | 'actual', raw: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
@@ -290,6 +336,21 @@ function BudgetCategoryRow({
           style={{ color: 'var(--color-muted)' }}
         >×</button>
       </div>
+      {bankSum !== null && bankSum > 0 && (
+        <div className="flex items-center gap-2 pb-1">
+          <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            from bank: ${bankSum.toFixed(0)}
+          </span>
+          <button
+            type="button"
+            className="text-[11px]"
+            style={{ color: 'var(--color-primary)' }}
+            onClick={() => handleSave('actual', String(bankSum))}
+          >
+            use this
+          </button>
+        </div>
+      )}
       {isOver && (
         <p className="text-[11px] pb-1 text-right" style={{ color: 'var(--color-negative)' }}>
           +{fmtWhole(category.actual - category.expected)} over

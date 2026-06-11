@@ -140,6 +140,22 @@ export async function deleteRecurringPayment(id: string): Promise<void> {
   if (error) throw error
 }
 
+// ── Past months bulk fetch (for trend charts) ─────────────────────────────────
+
+export async function getBudgetCategoriesPastMonths(months: string[]): Promise<BudgetCategory[]> {
+  if (months.length === 0) return []
+  const supabase = createClient()
+  const householdId = await resolveHouseholdId()
+  const { data, error } = await supabase
+    .from('budget_categories')
+    .select('*')
+    .eq('household_id', householdId)
+    .in('month', months)
+    .order('month', { ascending: true })
+  if (error) throw error
+  return data
+}
+
 // ── Carryover ─────────────────────────────────────────────────────────────────
 
 export async function carryoverBudget(fromMonth: string, toMonth: string): Promise<void> {
