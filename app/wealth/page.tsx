@@ -7,6 +7,7 @@ import {
   getAssets, createAsset, updateAsset, deleteAsset,
   getDebts, createDebt, updateDebt, deleteDebt,
   getNetWorthSnapshots, createNetWorthSnapshot, deleteNetWorthSnapshot,
+  syncPlaidBalances,
 } from '@/lib/queries/wealth'
 import { currentMonth, fmtWhole } from '@/lib/utils'
 import type { SavingsPod, Asset, Debt, NetWorthSnapshot, AssetUpdate, DebtUpdate, SavingsPodUpdate } from '@/types'
@@ -69,7 +70,9 @@ export default function WealthPage() {
   const [snapshots,  setSnapshots] = useState<NetWorthSnapshot[]>([])
   const [loading,    setLoading]   = useState(true)
   const [error,      setError]     = useState<string | null>(null)
-  const [savingSnap, setSavingSnap] = useState(false)
+  const [savingSnap,  setSavingSnap]  = useState(false)
+  const [syncing,     setSyncing]     = useState(false)
+  const [syncMsg,     setSyncMsg]     = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (authLoading) return
@@ -91,6 +94,44 @@ export default function WealthPage() {
   const totalPodGoal  = useMemo(() => pods.reduce((s, p) => s + p.goal, 0), [pods])
   const savingsBalance = useMemo(() => assets.filter(a => a.type === 'savings').reduce((s, a) => s + a.balance, 0), [assets])
 
+  async function handleBalanceSync() {
+    setSyncing(true)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/api/plaid/accounts')
+      const data = await res.json()
+      const accounts = data.accounts ?? []
+      if (accounts.length === 0) {
+        setSyncMsg('No bank accounts connected yet.')
+        return
+      }
+      const { assets: updatedAssets, debts: updatedDebts } = await syncPlaidBalances(accounts)
+      setAssets(prev => {
+        const next = [...prev]
+        for (const a of updatedAssets) {
+          const idx = next.findIndex(x => x.id === a.id)
+          if (idx >= 0) next[idx] = a; else next.push(a)
+        }
+        return next.sort((a, b) => a.name.localeCompare(b.name))
+      })
+      setDebts(prev => {
+        const next = [...prev]
+        for (const d of updatedDebts) {
+          const idx = next.findIndex(x => x.id === d.id)
+          if (idx >= 0) next[idx] = d; else next.push(d)
+        }
+        return next.sort((a, b) => a.owner.localeCompare(b.owner))
+      })
+      const count = updatedAssets.length + updatedDebts.length
+      setSyncMsg(`Synced ${count} account${count !== 1 ? 's' : ''} from bank`)
+    } catch {
+      setSyncMsg('Sync failed — please try again')
+    } finally {
+      setSyncing(false)
+      setTimeout(() => setSyncMsg(null), 4000)
+    }
+  }
+
   async function handleSnapshot() {
     const month = currentMonth()
     const existing = snapshots.find(s => s.month === month)
@@ -109,7 +150,17 @@ export default function WealthPage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-[20px] font-medium mb-5" style={{ color: 'var(--color-foreground)' }}>Wealth</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>Wealth</h1>
+        <Button variant="ghost" size="sm" onClick={handleBalanceSync} disabled={syncing}>
+          {syncing ? 'Syncing…' : 'Sync from bank'}
+        </Button>
+      </div>
+      {syncMsg && (
+        <p className="text-[13px] mb-4" style={{ color: syncMsg.includes('fail') ? 'var(--color-negative)' : 'var(--color-positive)' }}>
+          {syncMsg}
+        </p>
+      )}
 
       {error ? (
         <p className="text-[13px]" style={{ color: 'var(--color-negative)' }}>{error}</p>

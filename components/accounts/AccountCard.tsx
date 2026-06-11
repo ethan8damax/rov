@@ -108,7 +108,7 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
             onClick={handleDisconnect}
             disabled={disconnecting}
             className="underline disabled:opacity-40"
-            style={{ color: 'var(--color-negative)' }}
+            style={{ color: 'var(--color-muted)' }}
           >
             {disconnecting ? 'Removing…' : 'Remove'}
           </button>

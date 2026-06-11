@@ -5,6 +5,7 @@ import type {
   Asset, AssetInsert, AssetUpdate,
   Debt, DebtInsert, DebtUpdate,
   NetWorthSnapshot, NetWorthSnapshotInsert,
+  AccountWithBalance,
 } from '@/types'
 
 // ── Savings pods ──────────────────────────────────────────────────────────────
@@ -137,4 +138,69 @@ export async function deleteNetWorthSnapshot(id: string): Promise<void> {
   const supabase = createClient()
   const { error } = await supabase.from('net_worth_snapshots').delete().eq('id', id)
   if (error) throw error
+}
+
+// ── Plaid balance sync ────────────────────────────────────────────────────────
+
+// Upserts assets (depository/investment) and debts (credit) from live Plaid
+// account balances. Matches on plaid_account_id so re-running is safe.
+export async function syncPlaidBalances(
+  accounts: AccountWithBalance[],
+): Promise<{ assets: Asset[]; debts: Debt[] }> {
+  const supabase = createClient()
+  const household_id = await resolveHouseholdId()
+
+  const syncedAssets: Asset[] = []
+  const syncedDebts:  Debt[]  = []
+
+  for (const acct of accounts) {
+    const balance = acct.balances.current ?? acct.balances.available ?? 0
+    const name    = `${acct.name}${acct.mask ? ` ···${acct.mask}` : ''}`
+
+    if (acct.type === 'credit') {
+      const { data, error } = await supabase
+        .from('debts')
+        .upsert(
+          {
+            household_id,
+            name,
+            owner:            acct.institution_name,
+            amount_owed:      Math.max(0, balance),
+            interest_rate:    0,
+            plaid_account_id: acct.account_id,
+          },
+          { onConflict: 'household_id,plaid_account_id' },
+        )
+        .select()
+        .single()
+      if (!error && data) syncedDebts.push(data)
+    } else if (acct.type === 'depository' || acct.type === 'investment') {
+      const typeMap: Record<string, string> = {
+        checking:   'checking',
+        savings:    'savings',
+        investment: 'investment',
+        cd:         'savings',
+        'money market': 'savings',
+      }
+      const assetType = typeMap[acct.subtype] ?? (acct.type === 'investment' ? 'investment' : 'checking')
+
+      const { data, error } = await supabase
+        .from('assets')
+        .upsert(
+          {
+            household_id,
+            name,
+            type:             assetType,
+            balance:          Math.max(0, balance),
+            plaid_account_id: acct.account_id,
+          },
+          { onConflict: 'household_id,plaid_account_id' },
+        )
+        .select()
+        .single()
+      if (!error && data) syncedAssets.push(data)
+    }
+  }
+
+  return { assets: syncedAssets, debts: syncedDebts }
 }

@@ -54,9 +54,10 @@ export interface Asset {
   name: string
   type: string        // checking | savings | credit_card | investment | other
   balance: number
+  plaid_account_id: string | null
   created_at: string
 }
-export type AssetInsert = Omit<Asset, 'id' | 'created_at' | 'household_id'>
+export type AssetInsert = Omit<Asset, 'id' | 'created_at' | 'household_id' | 'plaid_account_id'> & { plaid_account_id?: string | null }
 export type AssetUpdate = Partial<Pick<Asset, 'name' | 'type' | 'balance'>>
 
 export interface Debt {
@@ -66,9 +67,10 @@ export interface Debt {
   owner: string
   amount_owed: number
   interest_rate: number
+  plaid_account_id: string | null
   created_at: string
 }
-export type DebtInsert = Omit<Debt, 'id' | 'created_at' | 'household_id'>
+export type DebtInsert = Omit<Debt, 'id' | 'created_at' | 'household_id' | 'plaid_account_id'> & { plaid_account_id?: string | null }
 export type DebtUpdate = Partial<Pick<Debt, 'name' | 'owner' | 'amount_owed' | 'interest_rate'>>
 
 export interface NetWorthSnapshot {
