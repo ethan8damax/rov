@@ -106,3 +106,64 @@ export interface HouseholdInvite {
   used_at: string | null
   created_at: string
 }
+
+// ── Plaid ─────────────────────────────────────────────────────────────────────
+
+export interface PlaidItem {
+  id: string
+  household_id: string
+  item_id: string
+  access_token: string          // server-side only — never return to client
+  institution_id: string
+  institution_name: string
+  transactions_cursor: string | null
+  created_at: string
+}
+
+export interface PlaidAccount {
+  id: string
+  item_id: string
+  household_id: string
+  account_id: string            // Plaid's account ID (text)
+  name: string
+  type: string
+  subtype: string
+  mask: string
+}
+
+export interface Transaction {
+  id: string
+  household_id: string
+  account_id: string            // our UUID → plaid_accounts.id
+  transaction_id: string
+  merchant_name: string | null
+  name: string
+  amount: number                // positive = expense, negative = income
+  date: string                  // YYYY-MM-DD
+  category_id: string | null
+  is_pending: boolean
+  created_at: string
+}
+
+export interface MerchantRule {
+  id: string
+  household_id: string
+  merchant_name: string
+  category_name: string
+  created_at: string
+}
+
+// Safe account data returned from /api/plaid/accounts (no access_token)
+export interface AccountWithBalance {
+  account_id: string            // Plaid's ID (text)
+  name: string
+  type: string
+  subtype: string
+  mask: string
+  institution_name: string
+  balances: {
+    current: number | null
+    available: number | null
+    iso_currency_code: string | null
+  }
+}
