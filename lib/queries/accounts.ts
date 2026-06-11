@@ -10,6 +10,8 @@ export interface TransactionWithCategory {
   is_pending: boolean
   category_id: string | null
   category_name: string | null
+  account_name: string | null
+  account_mask: string | null
 }
 
 export async function getTransactions(
@@ -24,7 +26,7 @@ export async function getTransactions(
 
   const { data, error } = await supabase
     .from('transactions')
-    .select('id, transaction_id, merchant_name, name, amount, date, is_pending, category_id, budget_categories(name)')
+    .select('id, transaction_id, merchant_name, name, amount, date, is_pending, category_id, budget_categories(name), plaid_accounts(name, mask)')
     .eq('household_id', householdId)
     .gte('date', `${month}-01`)
     .lt('date',  `${nextMonth}-01`)
@@ -40,6 +42,8 @@ export async function getTransactions(
     is_pending:     t.is_pending,
     category_id:    t.category_id,
     category_name:  (t.budget_categories as { name: string }[] | null)?.[0]?.name ?? null,
+    account_name:   (t.plaid_accounts as { name: string; mask: string }[] | null)?.[0]?.name ?? null,
+    account_mask:   (t.plaid_accounts as { name: string; mask: string }[] | null)?.[0]?.mask ?? null,
   }))
 }
 
@@ -118,4 +122,13 @@ export async function getTransactionSumsByCategory(
     totals[t.category_id] = (totals[t.category_id] ?? 0) + t.amount
   }
   return Object.entries(totals).map(([category_id, total]) => ({ category_id, total }))
+}
+
+export async function updateAccountName(plaidAccountId: string, name: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('plaid_accounts')
+    .update({ name })
+    .eq('account_id', plaidAccountId)
+  if (error) throw error
 }

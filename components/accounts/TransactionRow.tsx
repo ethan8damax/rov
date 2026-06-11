@@ -1,33 +1,48 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { BudgetCategory } from '@/types'
 import { fmt } from '@/lib/utils'
 import { updateTransactionCategory, upsertMerchantRule } from '@/lib/queries/accounts'
+import { createBudgetCategory } from '@/lib/queries/finance'
 
 interface TransactionRowProps {
-  id:           string
-  merchantName: string | null
-  name:         string
-  amount:       number
-  date:         string
-  isPending:    boolean
-  categoryId:   string | null
-  categoryName: string | null
-  categories:   BudgetCategory[]
-  householdId:  string
+  id:                string
+  merchantName:      string | null
+  name:              string
+  amount:            number
+  date:              string
+  isPending:         boolean
+  categoryId:        string | null
+  categoryName:      string | null
+  accountName:       string | null
+  accountMask:       string | null
+  categories:        BudgetCategory[]
+  householdId:       string
+  month:             string
+  onCategoryCreated: (cat: BudgetCategory) => void
 }
 
 export default function TransactionRow({
   id, merchantName, name, amount, date, isPending,
-  categoryId, categoryName, categories, householdId,
+  categoryId, categoryName, accountName, accountMask,
+  categories, householdId, month, onCategoryCreated,
 }: TransactionRowProps) {
   const [currentCatId,   setCurrentCatId]   = useState(categoryId)
   const [currentCatName, setCurrentCatName] = useState(categoryName)
-  const [saving, setSaving] = useState(false)
+  const [saving,         setSaving]         = useState(false)
+  const [addingNew,      setAddingNew]      = useState(false)
+  const [newCatName,     setNewCatName]     = useState('')
+  const newCatInputRef = useRef<HTMLInputElement>(null)
 
   async function handleCategoryChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    const newCatId = e.target.value || null
+    const val = e.target.value
+    if (val === '__new__') {
+      setAddingNew(true)
+      setTimeout(() => newCatInputRef.current?.focus(), 0)
+      return
+    }
+    const newCatId = val || null
     const newCat   = categories.find(c => c.id === newCatId) ?? null
     setSaving(true)
     try {
@@ -39,6 +54,27 @@ export default function TransactionRow({
       setCurrentCatName(newCat?.name ?? null)
     } catch (err) {
       console.error('Failed to update category', err)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleCreateCategory(e: React.FormEvent) {
+    e.preventDefault()
+    const trimmed = newCatName.trim()
+    if (!trimmed) { setAddingNew(false); return }
+    setSaving(true)
+    try {
+      const created = await createBudgetCategory({ name: trimmed, month, expected: 0, actual: 0 })
+      onCategoryCreated(created)
+      await updateTransactionCategory(id, created.id)
+      if (merchantName) await upsertMerchantRule(householdId, merchantName, created.name)
+      setCurrentCatId(created.id)
+      setCurrentCatName(created.name)
+      setNewCatName('')
+      setAddingNew(false)
+    } catch (err) {
+      console.error('Failed to create category', err)
     } finally {
       setSaving(false)
     }
@@ -67,18 +103,63 @@ export default function TransactionRow({
             <span className="ml-1 text-[10px]" style={{ color: 'var(--color-muted)' }}>pending</span>
           )}
         </p>
-        <select
-          value={currentCatId ?? ''}
-          onChange={handleCategoryChange}
-          disabled={saving}
-          className="mt-0.5 text-[11px] bg-transparent border-none outline-none cursor-pointer"
-          style={{ color: currentCatName ? 'var(--color-primary)' : 'var(--color-muted)' }}
-        >
-          <option value="">Uncategorized</option>
-          {categories.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
+
+        {/* Account source */}
+        {accountName && (
+          <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
+            {accountName}{accountMask ? ` ···${accountMask}` : ''}
+          </p>
+        )}
+
+        {/* Category selector / new category form */}
+        {addingNew ? (
+          <form onSubmit={handleCreateCategory} className="flex items-center gap-1 mt-0.5">
+            <input
+              ref={newCatInputRef}
+              value={newCatName}
+              onChange={e => setNewCatName(e.target.value)}
+              onKeyDown={e => e.key === 'Escape' && setAddingNew(false)}
+              placeholder="Category name"
+              disabled={saving}
+              className="text-[11px] bg-transparent border-b outline-none flex-1 min-w-0"
+              style={{
+                color:       'var(--color-foreground)',
+                borderColor: 'var(--color-primary)',
+                fontSize:    '16px',
+              }}
+            />
+            <button
+              type="submit"
+              disabled={saving || !newCatName.trim()}
+              className="text-[10px] px-1.5 py-0.5 rounded disabled:opacity-40"
+              style={{ background: 'var(--color-primary)', color: '#fff' }}
+            >
+              Add
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddingNew(false)}
+              className="text-[10px]"
+              style={{ color: 'var(--color-muted)' }}
+            >
+              ✕
+            </button>
+          </form>
+        ) : (
+          <select
+            value={currentCatId ?? ''}
+            onChange={handleCategoryChange}
+            disabled={saving}
+            className="mt-0.5 text-[11px] bg-transparent border-none outline-none cursor-pointer max-w-full"
+            style={{ color: currentCatName ? 'var(--color-primary)' : 'var(--color-muted)' }}
+          >
+            <option value="">Uncategorized</option>
+            {categories.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+            <option value="__new__">+ New category…</option>
+          </select>
+        )}
       </div>
 
       <span

@@ -161,7 +161,9 @@ export default function AccountsPage() {
           transactions={transactions}
           categories={categories}
           householdId={householdId}
+          month={month}
           loading={loadingTx}
+          onCategoryCreated={cat => setCategories(prev => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)))}
         />
       )}
     </div>

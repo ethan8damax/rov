@@ -23,6 +23,13 @@ export async function GET() {
     .eq('household_id', member.household_id)
   if (!items || items.length === 0) return NextResponse.json({ accounts: [] })
 
+  // Load any custom names the user has saved — prefer these over Plaid's names
+  const { data: localAccounts } = await supabase
+    .from('plaid_accounts')
+    .select('account_id, name')
+    .eq('household_id', member.household_id)
+  const nameOverrides = new Map((localAccounts ?? []).map(a => [a.account_id, a.name]))
+
   const allAccounts: AccountWithBalance[] = []
   for (const item of items) {
     try {
@@ -30,7 +37,7 @@ export async function GET() {
       for (const acct of res.data.accounts) {
         allAccounts.push({
           account_id:       acct.account_id,
-          name:             acct.name,
+          name:             nameOverrides.get(acct.account_id) ?? acct.name,
           type:             acct.type,
           subtype:          acct.subtype ?? '',
           mask:             acct.mask ?? '',
