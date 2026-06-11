@@ -137,7 +137,7 @@ export default function BudgetPage() {
                 </>
               ) : (
                 <Button size="sm" variant="ghost" intent="neutral" onClick={() => setShowCarryoverConfirm(true)}>
-                  Copy{' '}<span className="hidden sm:inline">from last month</span>
+                  Copy from last month
                 </Button>
               )}
             </div>
