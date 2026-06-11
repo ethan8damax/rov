@@ -81,6 +81,23 @@ export async function updateTransactionCategory(
   if (error) throw error
 }
 
+export async function getMerchantRules(householdId: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('merchant_rules')
+    .select('id, merchant_name, category_name')
+    .eq('household_id', householdId)
+    .order('merchant_name')
+  if (error) throw error
+  return data as { id: string; merchant_name: string; category_name: string }[]
+}
+
+export async function deleteMerchantRule(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase.from('merchant_rules').delete().eq('id', id)
+  if (error) throw error
+}
+
 export async function upsertMerchantRule(
   householdId: string,
   merchantName: string,

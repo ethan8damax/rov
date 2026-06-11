@@ -133,30 +133,12 @@ export default function AccountsPage() {
         <h2 className="text-[14px] font-medium" style={{ color: 'var(--color-foreground)' }}>
           Transactions
         </h2>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setMonth(m => shiftMonth(m, -1))}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-[18px] leading-none transition-opacity hover:opacity-60"
-            style={{ color: 'var(--color-muted)' }}
-            aria-label="Previous month"
-          >
-            ‹
-          </button>
-          <span
-            className="text-[12px] text-center tabular-nums"
-            style={{ color: 'var(--color-muted)', minWidth: '96px' }}
-          >
+        <div className="flex items-center gap-2">
+          <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(m => shiftMonth(m, -1))}>←</Button>
+          <span className="text-[13px] min-w-[100px] text-center" style={{ color: 'var(--color-foreground-secondary)' }}>
             {formatMonthLabel(month)}
           </span>
-          <button
-            onClick={() => setMonth(m => shiftMonth(m, 1))}
-            disabled={month >= now}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-[18px] leading-none transition-opacity hover:opacity-60 disabled:opacity-20"
-            style={{ color: 'var(--color-muted)' }}
-            aria-label="Next month"
-          >
-            ›
-          </button>
+          <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(m => shiftMonth(m, 1))} disabled={month >= now}>→</Button>
         </div>
       </div>
 

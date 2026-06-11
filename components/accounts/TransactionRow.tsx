@@ -31,6 +31,7 @@ export default function TransactionRow({
   const [currentCatId,   setCurrentCatId]   = useState(categoryId)
   const [currentCatName, setCurrentCatName] = useState(categoryName)
   const [saving,         setSaving]         = useState(false)
+  const [saved,          setSaved]          = useState(false)
   const [addingNew,      setAddingNew]      = useState(false)
   const [newCatName,     setNewCatName]     = useState('')
   const newCatInputRef = useRef<HTMLInputElement>(null)
@@ -52,6 +53,8 @@ export default function TransactionRow({
       }
       setCurrentCatId(newCatId)
       setCurrentCatName(newCat?.name ?? null)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1200)
     } catch (err) {
       console.error('Failed to update category', err)
     } finally {
@@ -73,6 +76,8 @@ export default function TransactionRow({
       setCurrentCatName(created.name)
       setNewCatName('')
       setAddingNew(false)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1200)
     } catch (err) {
       console.error('Failed to create category', err)
     } finally {
@@ -163,8 +168,8 @@ export default function TransactionRow({
       </div>
 
       <span
-        className="text-[13px] font-medium tabular-nums flex-shrink-0"
-        style={{ color: isExpense ? 'var(--color-foreground)' : 'var(--color-positive)' }}
+        className="text-[13px] font-medium tabular-nums flex-shrink-0 transition-colors"
+        style={{ color: saved ? 'var(--color-positive)' : isExpense ? 'var(--color-foreground)' : 'var(--color-positive)' }}
       >
         {!isExpense && '+'}{fmt(Math.abs(amount))}
       </span>

@@ -7,7 +7,7 @@
   --color-border-subtle: #161e32;
   --color-foreground: #ffffff;
   --color-foreground-secondary: #94a3b8;
-  --color-muted: #4a5a7a;
+  --color-muted: #6b7fa0;     /* ≥4.5:1 on dark bg */
 
   --color-primary: #3b6ef8;
   --color-primary-subtle: rgba(59, 110, 248, 0.12);
@@ -28,7 +28,7 @@
   --color-border-subtle: #f0ede7;
   --color-foreground: #1a1a1a;
   --color-foreground-secondary: #6b7280;
-  --color-muted: #9ca3af;
+  --color-muted: #5d6a7a;     /* ≥4.5:1 on light bg */
 
   --color-primary: #3b6ef8;
   --color-primary-subtle: rgba(59, 110, 248, 0.08);

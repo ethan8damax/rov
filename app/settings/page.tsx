@@ -5,6 +5,7 @@ import {
   getIncomeSources, createIncomeSource, updateIncomeSource, deleteIncomeSource,
   getRecurringPayments, createRecurringPayment, deleteRecurringPayment,
 } from '@/lib/queries/finance'
+import { getMerchantRules, deleteMerchantRule } from '@/lib/queries/accounts'
 import { getHouseholdMemberNames, createInvite } from '@/lib/queries/households'
 import { useAuth } from '@/lib/context/auth'
 import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole } from '@/lib/utils'
@@ -23,24 +24,26 @@ function Skeleton({ className = '' }: { className?: string }) {
 export default function SettingsPage() {
   const { householdId, loading: authLoading } = useAuth()
   const [month,      setMonth]      = useState(() => currentMonth())
-  const [incomes,    setIncomes]    = useState<IncomeSource[]>([])
-  const [recurrings, setRecurrings] = useState<RecurringPayment[]>([])
-  const [owners,     setOwners]     = useState<string[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [error,      setError]      = useState<string | null>(null)
-  const [inviteUrl,  setInviteUrl]  = useState<string | null>(null)
-  const [inviting,   setInviting]   = useState(false)
+  const [incomes,      setIncomes]      = useState<IncomeSource[]>([])
+  const [recurrings,   setRecurrings]   = useState<RecurringPayment[]>([])
+  const [owners,       setOwners]       = useState<string[]>([])
+  const [rules,        setRules]        = useState<{ id: string; merchant_name: string; category_name: string }[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState<string | null>(null)
+  const [inviteUrl,    setInviteUrl]    = useState<string | null>(null)
+  const [inviting,     setInviting]     = useState(false)
 
   const load = useCallback(async () => {
     if (authLoading) return
     setLoading(true); setError(null)
     try {
-      const [inc, rec, names] = await Promise.all([
+      const [inc, rec, names, rls] = await Promise.all([
         getIncomeSources(month),
         getRecurringPayments(),
         getHouseholdMemberNames(),
+        householdId ? getMerchantRules(householdId) : Promise.resolve([]),
       ])
-      setIncomes(inc); setRecurrings(rec); setOwners(names)
+      setIncomes(inc); setRecurrings(rec); setOwners(names); setRules(rls)
     } catch (err) {
       setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
     } finally { setLoading(false) }
@@ -84,6 +87,36 @@ export default function SettingsPage() {
             <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Recurring payments</h2>
             <RecurringSection recurrings={recurrings} setRecurrings={setRecurrings} />
           </section>
+
+          {/* Merchant rules */}
+          {rules.length > 0 && (
+            <section className="mb-8">
+              <h2 className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-foreground)' }}>Merchant rules</h2>
+              <p className="text-[12px] mb-3" style={{ color: 'var(--color-muted)' }}>
+                Auto-categorization rules saved from your transaction history. Delete a rule to stop it from applying.
+              </p>
+              <Card>
+                {rules.map(rule => (
+                  <div key={rule.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
+                    <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>{rule.merchant_name}</span>
+                    <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>→</span>
+                    <span className="text-[13px] truncate max-w-[120px]" style={{ color: 'var(--color-foreground-secondary)' }}>{rule.category_name}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!window.confirm(`Remove rule for "${rule.merchant_name}"?`)) return
+                        setRules(prev => prev.filter(r => r.id !== rule.id))
+                        deleteMerchantRule(rule.id)
+                      }}
+                      className="w-5 text-[16px] leading-none opacity-0 group-hover:opacity-100 transition-opacity"
+                      aria-label={`Delete rule for ${rule.merchant_name}`}
+                      style={{ color: 'var(--color-muted)' }}
+                    >×</button>
+                  </div>
+                ))}
+              </Card>
+            </section>
+          )}
 
           {/* Invite */}
           <section className="mb-8">
