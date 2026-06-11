@@ -6,7 +6,7 @@ import {
   getIncomeSources, carryoverBudget, getBudgetCategoriesPastMonths,
 } from '@/lib/queries/finance'
 import { getTransactionSumsByCategory } from '@/lib/queries/accounts'
-import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths } from '@/lib/utils'
+import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths, sanitizeError } from '@/lib/utils'
 import type { BudgetCategory } from '@/types'
 import { useAuth } from '@/lib/context/auth'
 import Card from '@/components/ui/Card'
@@ -35,7 +35,8 @@ export default function BudgetPage() {
   const [carrying,       setCarrying]       = useState(false)
   const [pastCategories, setPastCategories] = useState<BudgetCategory[]>([])
   const [bankSums,       setBankSums]       = useState<{ category_id: string; total: number }[]>([])
-  const [showTrends,     setShowTrends]     = useState(false)
+  const [showTrends,          setShowTrends]          = useState(false)
+  const [showCarryoverConfirm, setShowCarryoverConfirm] = useState(false)
 
   const load = useCallback(async () => {
     if (authLoading) return
@@ -53,8 +54,7 @@ export default function BudgetPage() {
       setPastCategories(pastCats)
       setBankSums(sums)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load'
-      setError(msg)
+      setError(sanitizeError(err))
     } finally {
       setLoading(false)
     }
@@ -91,6 +91,7 @@ export default function BudgetPage() {
   async function handleCarryover() {
     const prevMonth = shiftMonth(month, -1)
     setCarrying(true)
+    setShowCarryoverConfirm(false)
     try {
       await carryoverBudget(prevMonth, month)
       await load()
@@ -123,10 +124,22 @@ export default function BudgetPage() {
               {formatMonthLabel(month)}
             </span>
             <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(shiftMonth(month, 1))}>→</Button>
-            <div className="ml-auto">
-              <Button size="sm" variant="ghost" intent="neutral" onClick={handleCarryover} disabled={carrying}>
-                {carrying ? 'Copying…' : <>Copy<span className="hidden sm:inline"> from last month</span></>}
-              </Button>
+            <div className="ml-auto flex items-center gap-2">
+              {showCarryoverConfirm ? (
+                <>
+                  <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
+                    Copy from {formatMonthLabel(shiftMonth(month, -1))}?
+                  </span>
+                  <Button size="sm" intent="neutral" onClick={handleCarryover} disabled={carrying}>
+                    {carrying ? 'Copying…' : 'Copy'}
+                  </Button>
+                  <Button size="sm" variant="ghost" intent="neutral" onClick={() => setShowCarryoverConfirm(false)}>Cancel</Button>
+                </>
+              ) : (
+                <Button size="sm" variant="ghost" intent="neutral" onClick={() => setShowCarryoverConfirm(true)}>
+                  Copy<span className="hidden sm:inline"> from last month</span>
+                </Button>
+              )}
             </div>
           </div>
 
@@ -153,6 +166,9 @@ export default function BudgetPage() {
             <p className="text-[28px] font-medium tabular-nums" style={{ color: leftoverColor }}>
               {leftover < 0 ? '−' : ''}{fmtWhole(Math.abs(leftover))}
             </p>
+            {leftover === 0 && totalIncome > 0 && (
+              <p className="text-[12px] mt-1" style={{ color: 'var(--color-positive)' }}>Every dollar allocated</p>
+            )}
             <div className="flex items-center gap-3 mt-2 text-[12px]" style={{ color: 'var(--color-muted)' }}>
               <span>Income: {fmtWhole(totalIncome)}</span>
               <span>·</span>

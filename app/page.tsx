@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/context/auth'
 import { getBudgetCategories, getIncomeSources } from '@/lib/queries/finance'
 import { getSavingsPods, getAssets, getDebts, getNetWorthSnapshots } from '@/lib/queries/wealth'
 import { getUncategorizedCount } from '@/lib/queries/accounts'
-import { currentMonth, fmtWhole } from '@/lib/utils'
+import { currentMonth, fmtWhole, sanitizeError } from '@/lib/utils'
 import type { BudgetCategory, SavingsPod, Asset, Debt, NetWorthSnapshot } from '@/types'
 import MetricCard from '@/components/ui/MetricCard'
 import ProgressBar from '@/components/ui/ProgressBar'
@@ -16,7 +16,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 export default function HomePage() {
-  const { loading: authLoading, householdId } = useAuth()
+  const { loading: authLoading, householdId, displayName } = useAuth()
   const month = currentMonth()
 
   const [categories,         setCategories]         = useState<BudgetCategory[]>([])
@@ -47,7 +47,7 @@ export default function HomePage() {
       setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
       setUncategorizedCount(uncatCount)
     } catch (err) {
-      setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
+      setError(sanitizeError(err))
     } finally { setLoading(false) }
   }, [month, authLoading, householdId])
 
@@ -72,12 +72,20 @@ export default function HomePage() {
   const previousSnap = snapshots[snapshots.length - 2]
   const nwDelta = latestSnap && previousSnap ? latestSnap.net_worth - previousSnap.net_worth : null
 
+  const greeting = (() => {
+    const hour = new Date().getHours()
+    const first = displayName?.split(' ')[0] ?? ''
+    const suffix = first ? `, ${first}` : ''
+    if (hour < 12) return `Good morning${suffix}`
+    if (hour < 17) return `Good afternoon${suffix}`
+    return `Good evening${suffix}`
+  })()
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-2 mb-6">
-        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-primary)' }} />
-        <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>Rov</h1>
-        <span className="text-[13px] ml-1" style={{ color: 'var(--color-muted)' }}>
+      <div className="flex items-start justify-between mb-6">
+        <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>{greeting}</h1>
+        <span className="text-[12px] mt-1" style={{ color: 'var(--color-muted)' }}>
           {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </span>
       </div>
@@ -186,11 +194,18 @@ export default function HomePage() {
 
           {/* Empty state */}
           {categories.length === 0 && pods.length === 0 && (
-            <div className="text-center py-12">
-              <p className="text-[15px] font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>Welcome to Rov</p>
-              <p className="text-[13px]" style={{ color: 'var(--color-muted)' }}>
-                Start by setting up your budget categories and income sources.
+            <div className="py-10">
+              <p className="text-[15px] font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>Nothing set up yet</p>
+              <p className="text-[13px] mb-5" style={{ color: 'var(--color-muted)' }}>
+                Add this month's budget categories and income to see your household's picture here.
               </p>
+              <a
+                href="/budget"
+                className="text-[13px] font-medium"
+                style={{ color: 'var(--color-primary)' }}
+              >
+                Set up this month's budget →
+              </a>
             </div>
           )}
         </>

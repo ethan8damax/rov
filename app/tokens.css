@@ -22,10 +22,10 @@
 }
 
 .light {
-  --color-background: #f8f7f4;
+  --color-background: #f0f4fb;
   --color-surface: #ffffff;
-  --color-border: #ece9e3;
-  --color-border-subtle: #f0ede7;
+  --color-border: #dce4f0;
+  --color-border-subtle: #e5ecf8;
   --color-foreground: #1a1a1a;
   --color-foreground-secondary: #6b7280;
   --color-muted: #5d6a7a;     /* ≥4.5:1 on light bg */

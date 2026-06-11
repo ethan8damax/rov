@@ -30,6 +30,15 @@ export function cn(...classes: (string | false | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ')
 }
 
+export function sanitizeError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? ''
+  if (!msg) return 'Something went wrong. Please try again.'
+  if (/violated|constraint|duplicate|JSON object requested|multiple.*rows|no rows|syntax error|relation|column|schema|pgrst|supabase|postgres/i.test(msg)) {
+    return 'Something went wrong. Please try again.'
+  }
+  return msg
+}
+
 export function getPastMonths(currentMonth: string, count: number): string[] {
   const months: string[] = []
   let [y, mo] = currentMonth.split('-').map(Number)

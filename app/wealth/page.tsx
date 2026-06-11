@@ -9,7 +9,7 @@ import {
   getNetWorthSnapshots, createNetWorthSnapshot, deleteNetWorthSnapshot,
   syncPlaidBalances,
 } from '@/lib/queries/wealth'
-import { currentMonth, fmtWhole } from '@/lib/utils'
+import { currentMonth, fmtWhole, sanitizeError } from '@/lib/utils'
 import type { SavingsPod, Asset, Debt, NetWorthSnapshot, AssetUpdate, DebtUpdate, SavingsPodUpdate } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -96,9 +96,10 @@ export default function WealthPage() {
   const [snapshots,  setSnapshots] = useState<NetWorthSnapshot[]>([])
   const [loading,    setLoading]   = useState(true)
   const [error,      setError]     = useState<string | null>(null)
-  const [savingSnap,  setSavingSnap]  = useState(false)
-  const [syncing,     setSyncing]     = useState(false)
-  const [syncMsg,     setSyncMsg]     = useState<string | null>(null)
+  const [savingSnap,         setSavingSnap]         = useState(false)
+  const [confirmReplaceSnap, setConfirmReplaceSnap] = useState(false)
+  const [syncing,            setSyncing]            = useState(false)
+  const [syncMsg,            setSyncMsg]            = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (authLoading) return
@@ -107,7 +108,7 @@ export default function WealthPage() {
       const [p, a, d, s] = await Promise.all([getSavingsPods(), getAssets(), getDebts(), getNetWorthSnapshots()])
       setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
     } catch (err) {
-      setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
+      setError(sanitizeError(err))
     } finally { setLoading(false) }
   }, [authLoading])
 
@@ -161,10 +162,11 @@ export default function WealthPage() {
   async function handleSnapshot() {
     const month = currentMonth()
     const existing = snapshots.find(s => s.month === month)
-    if (existing) {
-      const ok = window.confirm(`A snapshot for ${month} already exists. Replace it?`)
-      if (!ok) return
+    if (existing && !confirmReplaceSnap) {
+      setConfirmReplaceSnap(true)
+      return
     }
+    setConfirmReplaceSnap(false)
     setSavingSnap(true)
     try {
       const snap = await createNetWorthSnapshot({
@@ -209,9 +211,19 @@ export default function WealthPage() {
             <NetWorthChart snapshots={snapshots} />
             <div className="flex items-center justify-between mt-2">
               <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>Updated monthly</span>
-              <Button size="sm" variant="ghost" intent="primary" onClick={handleSnapshot} disabled={savingSnap}>
-                {savingSnap ? 'Saving…' : 'Record snapshot'}
-              </Button>
+              {confirmReplaceSnap ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
+                    Replace {currentMonth()} snapshot?
+                  </span>
+                  <Button size="sm" intent="negative" onClick={handleSnapshot}>Replace</Button>
+                  <Button size="sm" variant="ghost" intent="neutral" onClick={() => setConfirmReplaceSnap(false)}>Cancel</Button>
+                </div>
+              ) : (
+                <Button size="sm" variant="ghost" intent="primary" onClick={handleSnapshot} disabled={savingSnap}>
+                  {savingSnap ? 'Saving…' : 'Record snapshot'}
+                </Button>
+              )}
             </div>
             {snapshots.length > 0 && (
               <div className="mt-2 pt-2" style={{ borderTop: '0.5px solid var(--color-border)' }}>
