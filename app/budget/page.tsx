@@ -19,8 +19,8 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 const DEFAULT_CATEGORIES = [
-  'Savings', 'Rent', 'Gas', 'Groceries', 'Restaurants',
-  'Coffee', 'Fun money', 'Recurring payments', 'Contribution', 'Hosting',
+  'Savings', 'Rent', 'Groceries', 'Gas', 'Restaurants',
+  'Coffee', 'Shopping', 'Subscriptions', 'Fun money', 'Recurring payments',
 ]
 
 export default function BudgetPage() {
@@ -99,7 +99,13 @@ export default function BudgetPage() {
   }
 
   const overBudget    = categories.filter(c => c.expected > 0 && c.actual > c.expected)
-  const leftoverColor = leftover < 0 ? 'var(--color-negative)' : 'var(--color-foreground)'
+  const leftoverColor = leftover < 0
+    ? 'var(--color-negative)'
+    : leftover === 0 && totalIncome > 0
+      ? 'var(--color-positive)'
+      : totalIncome > 0
+        ? 'var(--color-warning)'
+        : 'var(--color-foreground)'
   const trendMonths   = getPastMonths(month, 6)
 
   return (
@@ -366,7 +372,7 @@ function BudgetCategoryRow({
       {bankSum !== null && bankSum > 0 && (
         <div className="flex items-center gap-2 pb-1">
           <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-            from bank: ${bankSum.toFixed(0)}
+            {fmtWhole(bankSum)} from bank
           </span>
           <button
             type="button"
@@ -374,7 +380,7 @@ function BudgetCategoryRow({
             style={{ color: 'var(--color-primary)' }}
             onClick={() => handleSave('actual', String(bankSum))}
           >
-            use this
+            set as actual
           </button>
         </div>
       )}
@@ -384,8 +390,16 @@ function BudgetCategoryRow({
         </p>
       )}
       {category.expected > 0 && (
-        <div className="pb-2">
-          <ProgressBar value={pct} intent={isOver ? 'negative' : 'primary'} />
+        <div className="pb-2 flex items-center gap-2">
+          <div className="flex-1">
+            <ProgressBar value={pct} intent={isOver ? 'negative' : 'primary'} />
+          </div>
+          <span
+            className="text-[10px] tabular-nums flex-shrink-0 w-7 text-right"
+            style={{ color: isOver ? 'var(--color-negative)' : 'var(--color-muted)' }}
+          >
+            {Math.round(pct)}%
+          </span>
         </div>
       )}
     </div>

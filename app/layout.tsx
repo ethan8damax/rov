@@ -8,6 +8,7 @@ export const metadata: Metadata = {
   title: 'Rov',
   description: 'Household budgeting',
   manifest: '/manifest.json',
+  icons: { icon: '/favicon.svg' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

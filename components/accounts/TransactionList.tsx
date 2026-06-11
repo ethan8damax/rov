@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import type { BudgetCategory } from '@/types'
 import type { TransactionWithCategory } from '@/lib/queries/accounts'
 import TransactionRow from './TransactionRow'
-
-const PAGE_SIZE = 10
+import { fmt } from '@/lib/utils'
 
 interface TransactionListProps {
   transactions:      TransactionWithCategory[]
@@ -19,7 +18,6 @@ interface TransactionListProps {
 function Skeleton() {
   return (
     <div className="flex gap-3 py-3" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
-      <div className="w-11 h-4 rounded animate-pulse" style={{ background: 'var(--color-surface)' }} />
       <div className="flex-1">
         <div className="h-4 w-40 rounded animate-pulse mb-1.5" style={{ background: 'var(--color-surface)' }} />
         <div className="h-3 w-20 rounded animate-pulse"        style={{ background: 'var(--color-surface)' }} />
@@ -32,13 +30,17 @@ function Skeleton() {
 export default function TransactionList({
   transactions, categories, householdId, month, loading, onCategoryCreated,
 }: TransactionListProps) {
-  const [page, setPage] = useState(0)
-
-  // Reset to first page whenever the month/data changes
-  useEffect(() => { setPage(0) }, [transactions])
+  const grouped = useMemo(() => {
+    const map: Record<string, TransactionWithCategory[]> = {}
+    for (const t of transactions) {
+      if (!map[t.date]) map[t.date] = []
+      map[t.date].push(t)
+    }
+    return Object.entries(map).sort(([a], [b]) => b.localeCompare(a))
+  }, [transactions])
 
   if (loading) {
-    return <div>{Array.from({ length: PAGE_SIZE }).map((_, i) => <Skeleton key={i} />)}</div>
+    return <div>{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} />)}</div>
   }
 
   if (transactions.length === 0) {
@@ -49,55 +51,50 @@ export default function TransactionList({
     )
   }
 
-  const totalPages = Math.ceil(transactions.length / PAGE_SIZE)
-  const start      = page * PAGE_SIZE
-  const slice      = transactions.slice(start, start + PAGE_SIZE)
-
   return (
     <div>
-      {slice.map(t => (
-        <TransactionRow
-          key={t.id}
-          id={t.id}
-          merchantName={t.merchant_name}
-          name={t.name}
-          amount={t.amount}
-          date={t.date}
-          isPending={t.is_pending}
-          categoryId={t.category_id}
-          categoryName={t.category_name}
-          accountName={t.account_name}
-          accountMask={t.account_mask}
-          categories={categories}
-          householdId={householdId}
-          month={month}
-          onCategoryCreated={onCategoryCreated}
-        />
-      ))}
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-3">
-          <button
-            onClick={() => setPage(p => p - 1)}
-            disabled={page === 0}
-            className="text-[12px] px-3 py-1 rounded-md disabled:opacity-30"
-            style={{ color: 'var(--color-muted)', background: 'var(--color-surface)' }}
-          >
-            ← Prev
-          </button>
-          <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-            {start + 1}–{Math.min(start + PAGE_SIZE, transactions.length)} of {transactions.length}
-          </span>
-          <button
-            onClick={() => setPage(p => p + 1)}
-            disabled={page >= totalPages - 1}
-            className="text-[12px] px-3 py-1 rounded-md disabled:opacity-30"
-            style={{ color: 'var(--color-muted)', background: 'var(--color-surface)' }}
-          >
-            Next →
-          </button>
-        </div>
-      )}
+      {grouped.map(([date, dayTxs]) => {
+        const dayExpenses = dayTxs.reduce((s, t) => t.amount > 0 ? s + t.amount : s, 0)
+        const dayLabel    = new Date(date + 'T12:00:00').toLocaleDateString('en-US', {
+          weekday: 'short', month: 'short', day: 'numeric',
+        })
+        return (
+          <div key={date}>
+            <div
+              className="flex items-center justify-between py-2 sticky top-0 z-10"
+              style={{ background: 'var(--color-background)', borderBottom: '0.5px solid var(--color-border-subtle)' }}
+            >
+              <span className="text-[11px] font-medium" style={{ color: 'var(--color-muted)' }}>
+                {dayLabel}
+              </span>
+              {dayExpenses > 0 && (
+                <span className="text-[11px] tabular-nums" style={{ color: 'var(--color-muted)' }}>
+                  {fmt(dayExpenses)}
+                </span>
+              )}
+            </div>
+            {dayTxs.map(t => (
+              <TransactionRow
+                key={t.id}
+                id={t.id}
+                merchantName={t.merchant_name}
+                name={t.name}
+                amount={t.amount}
+                date={t.date}
+                isPending={t.is_pending}
+                categoryId={t.category_id}
+                categoryName={t.category_name}
+                accountName={t.account_name}
+                accountMask={t.account_mask}
+                categories={categories}
+                householdId={householdId}
+                month={month}
+                onCategoryCreated={onCategoryCreated}
+              />
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }

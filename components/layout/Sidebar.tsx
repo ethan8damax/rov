@@ -60,25 +60,27 @@ export default function Sidebar() {
 
       {/* Footer */}
       <div className="px-3 py-4 border-t" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between">
           <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
             {displayName ?? ''}
           </span>
-          <button
-            onClick={toggle}
-            className="text-[12px] px-2 py-0.5 rounded"
-            style={{ color: 'var(--color-muted)', background: 'var(--color-border)' }}
-          >
-            {theme === 'dark' ? '☀' : '☾'}
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={toggle}
+              className="text-[12px] px-1.5 py-0.5 rounded"
+              style={{ color: 'var(--color-muted)', background: 'var(--color-border)' }}
+            >
+              {theme === 'dark' ? '☀' : '☾'}
+            </button>
+            <button
+              onClick={signOut}
+              className="text-[11px] px-1.5 py-0.5 rounded"
+              style={{ color: 'var(--color-muted)', background: 'var(--color-border)' }}
+            >
+              ↪
+            </button>
+          </div>
         </div>
-        <button
-          onClick={signOut}
-          className="text-[12px] w-full text-left"
-          style={{ color: 'var(--color-muted)' }}
-        >
-          Sign out
-        </button>
       </div>
     </aside>
   )

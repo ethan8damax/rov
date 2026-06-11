@@ -6,8 +6,33 @@ import { fmt } from '@/lib/utils'
 import { updateAccountName } from '@/lib/queries/accounts'
 
 interface AccountCardProps {
-  account:          AccountWithBalance
-  onDisconnected?:  () => void
+  account:         AccountWithBalance
+  onDisconnected?: () => void
+}
+
+const INSTITUTION_COLORS: Record<string, string> = {
+  'navy federal': '#003087',
+  'chase':        '#117ACA',
+  'discover':     '#F76D00',
+  'bank of america': '#E31837',
+  'wells fargo':  '#D71E28',
+  'capital one':  '#004977',
+  'american express': '#2E77BC',
+  'citi':         '#003B8E',
+  'us bank':      '#0C4DA2',
+  'td bank':      '#34B233',
+  'ally':         '#7030A0',
+  'schwab':       '#00A9CE',
+  'fidelity':     '#387E38',
+  'vanguard':     '#8B0000',
+}
+
+function institutionColor(name: string): string {
+  const lower = name.toLowerCase()
+  for (const [key, color] of Object.entries(INSTITUTION_COLORS)) {
+    if (lower.includes(key)) return color
+  }
+  return 'var(--color-primary)'
 }
 
 function typeLabel(type: string, subtype: string): string {
@@ -25,6 +50,8 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
 
   const balance  = account.balances.current ?? account.balances.available
   const isCredit = account.type === 'credit'
+  const dotColor = institutionColor(account.institution_name)
+  const initial  = account.institution_name.charAt(0).toUpperCase()
 
   async function handleDisconnect() {
     setConfirmDisconnect(false)
@@ -55,7 +82,7 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
     try {
       await updateAccountName(account.account_id, trimmed)
     } catch {
-      setName(name) // revert on failure
+      setName(name)
     }
   }
 
@@ -66,13 +93,17 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
 
   return (
     <div
-      className="flex items-center justify-between px-4 py-3"
-      style={{
-        background:   'var(--color-surface)',
-        border:       '0.5px solid var(--color-border)',
-        borderRadius: '12px',
-      }}
+      className="flex items-center gap-3 px-4 py-3"
+      style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)', borderRadius: '12px' }}
     >
+      {/* Institution dot */}
+      <div
+        className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-medium"
+        style={{ background: dotColor, color: '#fff' }}
+      >
+        {initial}
+      </div>
+
       <div className="flex-1 min-w-0 mr-3">
         {editing ? (
           <input
@@ -82,23 +113,13 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
             onBlur={commitRename}
             onKeyDown={handleKeyDown}
             className="text-[13px] font-medium w-full bg-transparent outline-none border-b"
-            style={{
-              color:       'var(--color-foreground)',
-              borderColor: 'var(--color-primary)',
-              fontSize:    '16px',
-            }}
+            style={{ color: 'var(--color-foreground)', borderColor: 'var(--color-primary)', fontSize: '16px' }}
           />
         ) : (
-          <button
-            onClick={startEdit}
-            className="text-left w-full"
-            title="Click to rename"
-          >
+          <button onClick={startEdit} className="text-left w-full" title="Click to rename">
             <p className="text-[13px] font-medium truncate" style={{ color: 'var(--color-foreground)' }}>
               {name}
-              {account.mask && (
-                <span style={{ color: 'var(--color-muted)' }}> ···{account.mask}</span>
-              )}
+              {account.mask && <span style={{ color: 'var(--color-muted)' }}> ···{account.mask}</span>}
             </p>
           </button>
         )}

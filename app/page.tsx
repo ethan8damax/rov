@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/lib/context/auth'
+import { createClient } from '@/lib/supabase/client'
 import { getBudgetCategories, getIncomeSources } from '@/lib/queries/finance'
-import { getSavingsPods, getAssets, getDebts, getNetWorthSnapshots } from '@/lib/queries/wealth'
+import { getSavingsPods } from '@/lib/queries/wealth'
 import { getUncategorizedCount } from '@/lib/queries/accounts'
 import { currentMonth, fmtWhole, sanitizeError } from '@/lib/utils'
-import type { BudgetCategory, SavingsPod, Asset, Debt, NetWorthSnapshot } from '@/types'
+import type { BudgetCategory, SavingsPod } from '@/types'
 import MetricCard from '@/components/ui/MetricCard'
 import ProgressBar from '@/components/ui/ProgressBar'
 import Card from '@/components/ui/Card'
@@ -16,35 +17,42 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 export default function HomePage() {
-  const { loading: authLoading, householdId, displayName } = useAuth()
+  const { loading: authLoading, householdId, displayName, user } = useAuth()
   const month = currentMonth()
 
   const [categories,         setCategories]         = useState<BudgetCategory[]>([])
   const [pods,               setPods]               = useState<SavingsPod[]>([])
-  const [assets,             setAssets]             = useState<Asset[]>([])
-  const [debts,              setDebts]              = useState<Debt[]>([])
-  const [snapshots,          setSnapshots]          = useState<NetWorthSnapshot[]>([])
   const [totalIncome,        setTotalIncome]        = useState(0)
   const [uncategorizedCount, setUncategorizedCount] = useState(0)
   const [loading,            setLoading]            = useState(true)
   const [error,              setError]              = useState<string | null>(null)
+  const [partnerName,        setPartnerName]        = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!householdId || !user) return
+    const supabase = createClient()
+    supabase
+      .from('household_members')
+      .select('display_name')
+      .eq('household_id', householdId)
+      .neq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data }) => setPartnerName(data?.display_name ?? null))
+  }, [householdId, user?.id])
 
   const load = useCallback(async () => {
     if (authLoading) return
     setLoading(true); setError(null)
     try {
-      const [cats, incs, p, a, d, s, uncatCount] = await Promise.all([
+      const [cats, incs, p, uncatCount] = await Promise.all([
         getBudgetCategories(month),
         getIncomeSources(month),
         getSavingsPods(),
-        getAssets(),
-        getDebts(),
-        getNetWorthSnapshots(),
         householdId ? getUncategorizedCount(householdId, month) : Promise.resolve(0),
       ])
       setCategories(cats)
       setTotalIncome(incs.reduce((sum, i) => sum + i.expected, 0))
-      setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
+      setPods(p)
       setUncategorizedCount(uncatCount)
     } catch (err) {
       setError(sanitizeError(err))
@@ -53,49 +61,71 @@ export default function HomePage() {
 
   useEffect(() => { load() }, [load])
 
-  const totalBudgeted  = useMemo(() => categories.reduce((s, c) => s + c.expected, 0), [categories])
-  const leftover       = totalIncome - totalBudgeted
-  const totalAssets    = useMemo(() => assets.reduce((s, a) => s + a.balance, 0), [assets])
-  const totalDebt      = useMemo(() => debts.reduce((s, d) => s + d.amount_owed, 0), [debts])
-  const netWorth       = totalAssets - totalDebt
-  const totalAllotted  = useMemo(() => pods.reduce((s, p) => s + p.allotted, 0), [pods])
-  const totalPodGoal   = useMemo(() => pods.reduce((s, p) => s + p.goal, 0), [pods])
+  const totalBudgeted = useMemo(() => categories.reduce((s, c) => s + c.expected, 0), [categories])
+  const totalActual   = useMemo(() => categories.reduce((s, c) => s + c.actual,   0), [categories])
+  const leftover      = totalIncome - totalBudgeted
+  const totalAllotted = useMemo(() => pods.reduce((s, p) => s + p.allotted, 0), [pods])
+  const totalPodGoal  = useMemo(() => pods.reduce((s, p) => s + p.goal,     0), [pods])
 
   const topCategories = useMemo(
     () => [...categories].filter(c => c.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 5),
     [categories],
   )
-
   const overBudget = categories.filter(c => c.expected > 0 && c.actual > c.expected)
 
-  const latestSnap   = snapshots[snapshots.length - 1]
-  const previousSnap = snapshots[snapshots.length - 2]
-  const nwDelta = latestSnap && previousSnap ? latestSnap.net_worth - previousSnap.net_worth : null
+  const today       = new Date()
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+  const daysLeft    = daysInMonth - today.getDate()
+  const dailyRate   = daysLeft > 0 && leftover > 0 && totalIncome > 0 ? leftover / daysLeft : null
 
   const greeting = (() => {
-    const hour = new Date().getHours()
+    const hour  = today.getHours()
     const first = displayName?.split(' ')[0] ?? ''
-    const suffix = first ? `, ${first}` : ''
+    const partnerFirst = partnerName?.split(' ')[0] ?? ''
+    const names = first && partnerFirst ? `${first} & ${partnerFirst}` : first || partnerFirst
+    const suffix = names ? `, ${names}` : ''
     if (hour < 12) return `Good morning${suffix}`
     if (hour < 17) return `Good afternoon${suffix}`
     return `Good evening${suffix}`
   })()
 
+  const todayLabel = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+  const heroColor = leftover < 0
+    ? 'var(--color-negative)'
+    : leftover === 0 && totalIncome > 0
+      ? 'var(--color-positive)'
+      : totalIncome > 0
+        ? 'var(--color-warning)'
+        : 'var(--color-foreground)'
+
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <div className="flex items-start justify-between mb-6">
+      <div className="mb-6">
         <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>{greeting}</h1>
-        <span className="text-[12px] mt-1" style={{ color: 'var(--color-muted)' }}>
-          {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-        </span>
+        <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-muted)' }}>
+          {todayLabel}{daysLeft > 0 ? ` · ${daysLeft} days left in ${today.toLocaleDateString('en-US', { month: 'long' })}` : ''}
+        </p>
       </div>
 
-      {/* Uncategorized transactions nudge */}
       {!loading && !error && uncategorizedCount > 0 && (
-        <a href="/accounts" className="block mb-5 rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-subtle)', border: '0.5px solid var(--color-primary)' }}>
-          <p className="text-[13px]" style={{ color: 'var(--color-primary)' }}>
-            {uncategorizedCount} transaction{uncategorizedCount !== 1 ? 's' : ''} this month {uncategorizedCount !== 1 ? 'need' : 'needs'} a category →
-          </p>
+        <a
+          href="/accounts"
+          className="flex items-center justify-between mb-5 rounded-xl px-4 py-3"
+          style={{ background: 'var(--color-primary-subtle)', border: '0.5px solid var(--color-primary)' }}
+        >
+          <div className="flex items-center gap-2.5">
+            <span
+              className="text-[12px] font-medium tabular-nums px-1.5 py-0.5 rounded-md"
+              style={{ background: 'var(--color-primary)', color: '#fff' }}
+            >
+              {uncategorizedCount}
+            </span>
+            <span className="text-[13px]" style={{ color: 'var(--color-primary)' }}>
+              transaction{uncategorizedCount !== 1 ? 's' : ''} need{uncategorizedCount === 1 ? 's' : ''} a category
+            </span>
+          </div>
+          <span className="text-[13px]" style={{ color: 'var(--color-primary)' }}>→</span>
         </a>
       )}
 
@@ -103,52 +133,51 @@ export default function HomePage() {
         <p className="text-[13px]" style={{ color: 'var(--color-negative)' }}>{error}</p>
       ) : loading ? (
         <div className="flex flex-col gap-4">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-32 w-full" />
-          <Skeleton className="h-40 w-full" />
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-36 w-full" />
         </div>
       ) : (
         <>
-          {/* Net worth hero */}
+          {/* Left to budget hero */}
           <section className="mb-6">
             <div className="rounded-xl px-5 py-4" style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }}>
-              <p className="text-[12px] mb-1" style={{ color: 'var(--color-muted)' }}>Net worth</p>
-              <p className="text-[32px] font-medium tabular-nums" style={{ color: 'var(--color-foreground)' }}>
-                {netWorth < 0 ? '−' : ''}{fmtWhole(Math.abs(netWorth))}
+              <p className="text-[12px] mb-1" style={{ color: 'var(--color-muted)' }}>
+                {leftover < 0 ? 'Over-allocated' : leftover === 0 && totalIncome > 0 ? 'Budget complete' : 'Left to budget'}
               </p>
-              {nwDelta !== null && (
-                <p className="text-[13px] mt-1" style={{ color: nwDelta >= 0 ? 'var(--color-positive)' : 'var(--color-negative)' }}>
-                  {nwDelta >= 0 ? '↑' : '↓'} {fmtWhole(Math.abs(nwDelta))} since last snapshot
+              <p className="text-[32px] font-medium tabular-nums" style={{ color: heroColor }}>
+                {leftover < 0 ? '−' : ''}{fmtWhole(Math.abs(leftover))}
+              </p>
+              {dailyRate !== null && (
+                <p className="text-[13px] mt-1" style={{ color: 'var(--color-muted)' }}>
+                  ~{fmtWhole(dailyRate)}/day to allocate · {daysLeft} days left
                 </p>
               )}
-            </div>
-          </section>
-
-          {/* Budget health */}
-          <section className="mb-6">
-            <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Budget this month</h2>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <MetricCard label="Income"   value={fmtWhole(totalIncome)} />
-              <MetricCard label="Budgeted" value={fmtWhole(totalBudgeted)} />
-              <MetricCard
-                label="Unallocated"
-                value={(leftover < 0 ? '−' : '') + fmtWhole(Math.abs(leftover))}
-                valueColor={leftover < 0 ? 'var(--color-negative)' : undefined}
-              />
-            </div>
-            {totalIncome > 0 && (
-              <ProgressBar value={Math.min(100, (totalBudgeted / totalIncome) * 100)} intent="primary" />
-            )}
-            {overBudget.length > 0 && (
-              <div className="mt-3 rounded-xl px-4 py-3" style={{ background: 'var(--color-negative-subtle)' }}>
-                <p className="text-[12px]" style={{ color: 'var(--color-negative)' }}>
-                  Over budget on {overBudget.length} {overBudget.length === 1 ? 'category' : 'categories'}: {overBudget.map(c => c.name).join(', ')}
-                </p>
+              {leftover === 0 && totalIncome > 0 && (
+                <p className="text-[13px] mt-1" style={{ color: 'var(--color-positive)' }}>Every dollar allocated</p>
+              )}
+              {totalIncome > 0 && (
+                <div className="mt-3">
+                  <ProgressBar value={Math.min(100, (totalBudgeted / totalIncome) * 100)} intent={leftover < 0 ? 'negative' : 'primary'} />
+                </div>
+              )}
+              <div className="flex items-center gap-3 mt-2 text-[12px]" style={{ color: 'var(--color-muted)' }}>
+                <span>Income {fmtWhole(totalIncome)}</span>
+                <span>·</span>
+                <span>Budgeted {fmtWhole(totalBudgeted)}</span>
+                {totalActual > 0 && <><span>·</span><span>Spent {fmtWhole(totalActual)}</span></>}
               </div>
-            )}
+            </div>
           </section>
 
-          {/* Savings */}
+          {overBudget.length > 0 && (
+            <div className="rounded-xl px-4 py-3 mb-5" style={{ background: 'var(--color-negative-subtle)' }}>
+              <p className="text-[12px]" style={{ color: 'var(--color-negative)' }}>
+                Over budget on {overBudget.length} {overBudget.length === 1 ? 'category' : 'categories'}: {overBudget.map(c => c.name).join(', ')}
+              </p>
+            </div>
+          )}
+
           {pods.length > 0 && (
             <section className="mb-6">
               <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Savings</h2>
@@ -164,7 +193,6 @@ export default function HomePage() {
             </section>
           )}
 
-          {/* Top spending */}
           {topCategories.length > 0 && (
             <section className="mb-6">
               <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Top spending</h2>
@@ -181,9 +209,7 @@ export default function HomePage() {
                         {fmtWhole(c.actual)}
                       </span>
                       {c.expected > 0 && (
-                        <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                          / {fmtWhole(c.expected)}
-                        </span>
+                        <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>/ {fmtWhole(c.expected)}</span>
                       )}
                     </div>
                   )
@@ -192,18 +218,13 @@ export default function HomePage() {
             </section>
           )}
 
-          {/* Empty state */}
           {categories.length === 0 && pods.length === 0 && (
             <div className="py-10">
               <p className="text-[15px] font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>Nothing set up yet</p>
               <p className="text-[13px] mb-5" style={{ color: 'var(--color-muted)' }}>
                 Add this month's budget categories and income to see your household's picture here.
               </p>
-              <a
-                href="/budget"
-                className="text-[13px] font-medium"
-                style={{ color: 'var(--color-primary)' }}
-              >
+              <a href="/budget" className="text-[13px] font-medium" style={{ color: 'var(--color-primary)' }}>
                 Set up this month's budget →
               </a>
             </div>

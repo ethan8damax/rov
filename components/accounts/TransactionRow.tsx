@@ -87,36 +87,46 @@ export default function TransactionRow({
 
   const displayName   = merchantName ?? name
   const isExpense     = amount > 0
-  const formattedDate = new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
   return (
     <div
       className="flex items-center gap-3 py-3"
-      style={{ borderBottom: '0.5px solid var(--color-border)' }}
+      style={{
+        borderBottom: '0.5px solid var(--color-border)',
+        opacity: isPending ? 0.6 : 1,
+      }}
     >
-      <span
-        className="text-[11px] w-11 flex-shrink-0 tabular-nums"
-        style={{ color: 'var(--color-muted)' }}
-      >
-        {formattedDate}
-      </span>
-
       <div className="flex-1 min-w-0">
-        <p className="text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>
+        <p
+          className="text-[13px] truncate"
+          style={{
+            color:     'var(--color-foreground)',
+            fontStyle: isPending ? 'italic' : 'normal',
+          }}
+        >
           {displayName}
           {isPending && (
-            <span className="ml-1 text-[10px]" style={{ color: 'var(--color-muted)' }}>pending</span>
+            <span
+              className="ml-1.5 inline-block text-[9px] px-1 py-px rounded"
+              style={{
+                background:    'var(--color-border)',
+                color:         'var(--color-muted)',
+                letterSpacing: '0.04em',
+                verticalAlign: 'middle',
+                fontStyle:     'normal',
+              }}
+            >
+              pending
+            </span>
           )}
         </p>
 
-        {/* Account source */}
         {accountName && (
           <p className="text-[10px]" style={{ color: 'var(--color-muted)' }}>
             {accountName}{accountMask ? ` ···${accountMask}` : ''}
           </p>
         )}
 
-        {/* Category selector / new category form */}
         {addingNew ? (
           <form onSubmit={handleCreateCategory} className="flex items-center gap-1 mt-0.5">
             <input
@@ -127,11 +137,7 @@ export default function TransactionRow({
               placeholder="Category name"
               disabled={saving}
               className="text-[11px] bg-transparent border-b outline-none flex-1 min-w-0"
-              style={{
-                color:       'var(--color-foreground)',
-                borderColor: 'var(--color-primary)',
-                fontSize:    '16px',
-              }}
+              style={{ color: 'var(--color-foreground)', borderColor: 'var(--color-primary)', fontSize: '16px' }}
             />
             <button
               type="submit"
@@ -169,9 +175,9 @@ export default function TransactionRow({
 
       <span
         className="text-[13px] font-medium tabular-nums flex-shrink-0 transition-colors"
-        style={{ color: saved ? 'var(--color-positive)' : isExpense ? 'var(--color-foreground)' : 'var(--color-positive)' }}
+        style={{ color: saved ? 'var(--color-positive)' : isExpense ? 'var(--color-negative)' : 'var(--color-positive)' }}
       >
-        {!isExpense && '+'}{fmt(Math.abs(amount))}
+        {isExpense ? '−' : '+'}{fmt(Math.abs(amount))}
       </span>
     </div>
   )

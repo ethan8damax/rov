@@ -81,6 +81,19 @@ export default function AccountsPage() {
 
   const now = currentMonth()
 
+  const accountGroups = (() => {
+    const checking   = accounts.filter(a => a.type === 'depository')
+    const investment = accounts.filter(a => a.type === 'investment')
+    const credit     = accounts.filter(a => a.type === 'credit')
+    const other      = accounts.filter(a => !['depository', 'investment', 'credit'].includes(a.type))
+    return [
+      { label: 'Checking & savings', accounts: checking },
+      { label: 'Investments',        accounts: investment },
+      { label: 'Credit cards',       accounts: credit },
+      { label: 'Other',              accounts: other },
+    ].filter(g => g.accounts.length > 0)
+  })()
+
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -117,13 +130,22 @@ export default function AccountsPage() {
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-2 mb-6">
-          {accounts.map(acct => (
-            <AccountCard
-              key={acct.account_id}
-              account={acct}
-              onDisconnected={() => { loadAccounts(); loadTransactions() }}
-            />
+        <div className="flex flex-col gap-5 mb-6">
+          {accountGroups.map(group => (
+            <div key={group.label}>
+              <p className="text-[11px] font-medium mb-2" style={{ color: 'var(--color-muted)' }}>
+                {group.label}
+              </p>
+              <div className="flex flex-col gap-2">
+                {group.accounts.map(acct => (
+                  <AccountCard
+                    key={acct.account_id}
+                    account={acct}
+                    onDisconnected={() => { loadAccounts(); loadTransactions() }}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
