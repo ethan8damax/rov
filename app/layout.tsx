@@ -7,6 +7,7 @@ import AppShell from '@/components/layout/AppShell'
 export const metadata: Metadata = {
   title: 'Rov',
   description: 'Household budgeting',
+  manifest: '/manifest.json',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
