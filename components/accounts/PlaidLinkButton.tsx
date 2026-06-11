@@ -1,45 +1,51 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import Button from '@/components/ui/Button'
 
-interface PlaidLinkButtonProps {
+// Separate component so usePlaidLink is only called once we have a real token.
+// Calling it with token='' causes silent failure and the hook won't reinitialize.
+function PlaidLinkInner({
+  token,
+  onConnected,
+  onExit,
+}: {
+  token: string
   onConnected: () => void
-}
-
-export default function PlaidLinkButton({ onConnected }: PlaidLinkButtonProps) {
-  const [linkToken, setLinkToken] = useState<string | null>(null)
-  const [fetching,  setFetching]  = useState(false)
-  const [error,     setError]     = useState<string | null>(null)
-
-  const onSuccess = useCallback(async (publicToken: string, metadata: { institution: { institution_id: string; name: string } | null }) => {
-    if (!metadata.institution) return
+  onExit: () => void
+}) {
+  const onSuccess = useCallback(async (
+    publicToken: string,
+    metadata: { institution: { institution_id: string; name: string } | null },
+  ) => {
+    if (!metadata.institution) { onExit(); return }
     try {
       const res = await fetch('/api/plaid/exchange', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_token: publicToken,
-          institution:  metadata.institution,
-        }),
+        body: JSON.stringify({ public_token: publicToken, institution: metadata.institution }),
       })
       if (!res.ok) throw new Error('Failed to connect bank')
       onConnected()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Connection failed')
+    } catch {
+      onExit()
     }
-  }, [onConnected])
+  }, [onConnected, onExit])
 
-  const { open, ready } = usePlaidLink({
-    token:  linkToken ?? '',
-    onSuccess,
-    onExit: useCallback(() => setLinkToken(null), []),
-  })
+  const { open, ready } = usePlaidLink({ token, onSuccess, onExit })
 
   useEffect(() => {
-    if (linkToken && ready) open()
-  }, [linkToken, ready, open])
+    if (ready) open()
+  }, [ready, open])
+
+  return null
+}
+
+export default function PlaidLinkButton({ onConnected }: { onConnected: () => void }) {
+  const [linkToken, setLinkToken] = useState<string | null>(null)
+  const [fetching,  setFetching]  = useState(false)
+  const [error,     setError]     = useState<string | null>(null)
 
   async function handleClick() {
     setFetching(true)
@@ -49,15 +55,28 @@ export default function PlaidLinkButton({ onConnected }: PlaidLinkButtonProps) {
       const data = await res.json()
       if (!res.ok || !data.link_token) throw new Error(data.error ?? 'Failed to get link token')
       setLinkToken(data.link_token)
-      setFetching(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start bank connection')
       setFetching(false)
     }
   }
 
+  function handleExit() {
+    setLinkToken(null)
+    setFetching(false)
+  }
+
+  function handleConnected() {
+    setLinkToken(null)
+    setFetching(false)
+    onConnected()
+  }
+
   return (
     <div>
+      {linkToken && (
+        <PlaidLinkInner token={linkToken} onConnected={handleConnected} onExit={handleExit} />
+      )}
       <Button onClick={handleClick} disabled={fetching} size="sm">
         {fetching ? 'Loading…' : 'Connect a bank'}
       </Button>
