@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/context/auth'
 import { getTransactions } from '@/lib/queries/accounts'
 import type { TransactionWithCategory } from '@/lib/queries/accounts'
 import { getBudgetCategories } from '@/lib/queries/finance'
-import { currentMonth } from '@/lib/utils'
+import { currentMonth, shiftMonth, formatMonthLabel } from '@/lib/utils'
 import type { AccountWithBalance, BudgetCategory } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
@@ -15,6 +15,7 @@ import TransactionList from '@/components/accounts/TransactionList'
 
 export default function AccountsPage() {
   const { householdId } = useAuth()
+  const [month,        setMonth]        = useState(() => currentMonth())
   const [accounts,     setAccounts]     = useState<AccountWithBalance[]>([])
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
   const [categories,   setCategories]   = useState<BudgetCategory[]>([])
@@ -23,7 +24,6 @@ export default function AccountsPage() {
   const [syncing,      setSyncing]      = useState(false)
   const [syncMsg,      setSyncMsg]      = useState<string | null>(null)
   const [error,        setError]        = useState<string | null>(null)
-  const month = currentMonth()
 
   const loadAccounts = useCallback(async () => {
     setLoadingAcct(true)
@@ -43,7 +43,7 @@ export default function AccountsPage() {
     setLoadingTx(true)
     try {
       const [txs, cats] = await Promise.all([
-        getTransactions(householdId),
+        getTransactions(householdId, month),
         getBudgetCategories(month),
       ])
       setTransactions(txs)
@@ -55,10 +55,8 @@ export default function AccountsPage() {
     }
   }, [householdId, month])
 
-  useEffect(() => {
-    loadAccounts()
-    loadTransactions()
-  }, [loadAccounts, loadTransactions])
+  useEffect(() => { loadAccounts() }, [loadAccounts])
+  useEffect(() => { loadTransactions() }, [loadTransactions])
 
   async function handleSync() {
     setSyncing(true)
@@ -80,6 +78,8 @@ export default function AccountsPage() {
     loadAccounts()
     loadTransactions()
   }
+
+  const now = currentMonth()
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto">
@@ -124,9 +124,38 @@ export default function AccountsPage() {
         </div>
       )}
 
-      <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>
-        Transactions
-      </h2>
+      {/* Transactions section with month nav */}
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-[14px] font-medium" style={{ color: 'var(--color-foreground)' }}>
+          Transactions
+        </h2>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => setMonth(m => shiftMonth(m, -1))}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-[18px] leading-none transition-opacity hover:opacity-60"
+            style={{ color: 'var(--color-muted)' }}
+            aria-label="Previous month"
+          >
+            ‹
+          </button>
+          <span
+            className="text-[12px] text-center tabular-nums"
+            style={{ color: 'var(--color-muted)', minWidth: '96px' }}
+          >
+            {formatMonthLabel(month)}
+          </span>
+          <button
+            onClick={() => setMonth(m => shiftMonth(m, 1))}
+            disabled={month >= now}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-[18px] leading-none transition-opacity hover:opacity-60 disabled:opacity-20"
+            style={{ color: 'var(--color-muted)' }}
+            aria-label="Next month"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
       {householdId && (
         <TransactionList
           transactions={transactions}

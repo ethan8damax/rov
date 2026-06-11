@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/lib/context/auth'
 import { getBudgetCategories, getIncomeSources } from '@/lib/queries/finance'
 import { getSavingsPods, getAssets, getDebts, getNetWorthSnapshots } from '@/lib/queries/wealth'
+import { getUncategorizedCount } from '@/lib/queries/accounts'
 import { currentMonth, fmtWhole } from '@/lib/utils'
 import type { BudgetCategory, SavingsPod, Asset, Debt, NetWorthSnapshot } from '@/types'
 import MetricCard from '@/components/ui/MetricCard'
@@ -15,37 +16,40 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 export default function HomePage() {
-  const { loading: authLoading } = useAuth()
+  const { loading: authLoading, householdId } = useAuth()
   const month = currentMonth()
 
-  const [categories,  setCategories]  = useState<BudgetCategory[]>([])
-  const [pods,        setPods]        = useState<SavingsPod[]>([])
-  const [assets,      setAssets]      = useState<Asset[]>([])
-  const [debts,       setDebts]       = useState<Debt[]>([])
-  const [snapshots,   setSnapshots]   = useState<NetWorthSnapshot[]>([])
-  const [totalIncome, setTotalIncome] = useState(0)
-  const [loading,     setLoading]     = useState(true)
-  const [error,       setError]       = useState<string | null>(null)
+  const [categories,         setCategories]         = useState<BudgetCategory[]>([])
+  const [pods,               setPods]               = useState<SavingsPod[]>([])
+  const [assets,             setAssets]             = useState<Asset[]>([])
+  const [debts,              setDebts]              = useState<Debt[]>([])
+  const [snapshots,          setSnapshots]          = useState<NetWorthSnapshot[]>([])
+  const [totalIncome,        setTotalIncome]        = useState(0)
+  const [uncategorizedCount, setUncategorizedCount] = useState(0)
+  const [loading,            setLoading]            = useState(true)
+  const [error,              setError]              = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (authLoading) return
     setLoading(true); setError(null)
     try {
-      const [cats, incs, p, a, d, s] = await Promise.all([
+      const [cats, incs, p, a, d, s, uncatCount] = await Promise.all([
         getBudgetCategories(month),
         getIncomeSources(month),
         getSavingsPods(),
         getAssets(),
         getDebts(),
         getNetWorthSnapshots(),
+        householdId ? getUncategorizedCount(householdId, month) : Promise.resolve(0),
       ])
       setCategories(cats)
       setTotalIncome(incs.reduce((sum, i) => sum + i.expected, 0))
       setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
+      setUncategorizedCount(uncatCount)
     } catch (err) {
       setError(err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Failed to load')
     } finally { setLoading(false) }
-  }, [month, authLoading])
+  }, [month, authLoading, householdId])
 
   useEffect(() => { load() }, [load])
 
@@ -77,6 +81,15 @@ export default function HomePage() {
           {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
         </span>
       </div>
+
+      {/* Uncategorized transactions nudge */}
+      {!loading && !error && uncategorizedCount > 0 && (
+        <a href="/accounts" className="block mb-5 rounded-xl px-4 py-3" style={{ background: 'var(--color-primary-subtle)', border: '0.5px solid var(--color-primary)' }}>
+          <p className="text-[13px]" style={{ color: 'var(--color-primary)' }}>
+            {uncategorizedCount} transaction{uncategorizedCount !== 1 ? 's' : ''} this month {uncategorizedCount !== 1 ? 'need' : 'needs'} a category →
+          </p>
+        </a>
+      )}
 
       {error ? (
         <p className="text-[13px]" style={{ color: 'var(--color-negative)' }}>{error}</p>

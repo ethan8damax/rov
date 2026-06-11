@@ -14,15 +14,21 @@ export interface TransactionWithCategory {
 
 export async function getTransactions(
   householdId: string,
-  limit = 150,
+  month: string,
 ): Promise<TransactionWithCategory[]> {
   const supabase = createClient()
+  const [year, mon] = month.split('-').map(Number)
+  const nextMonth = mon === 12
+    ? `${year + 1}-01`
+    : `${year}-${String(mon + 1).padStart(2, '0')}`
+
   const { data, error } = await supabase
     .from('transactions')
     .select('id, transaction_id, merchant_name, name, amount, date, is_pending, category_id, budget_categories(name)')
     .eq('household_id', householdId)
+    .gte('date', `${month}-01`)
+    .lt('date',  `${nextMonth}-01`)
     .order('date', { ascending: false })
-    .limit(limit)
   if (error) throw error
   return (data ?? []).map(t => ({
     id:             t.id,
@@ -35,6 +41,28 @@ export async function getTransactions(
     category_id:    t.category_id,
     category_name:  (t.budget_categories as { name: string }[] | null)?.[0]?.name ?? null,
   }))
+}
+
+export async function getUncategorizedCount(
+  householdId: string,
+  month: string,
+): Promise<number> {
+  const supabase = createClient()
+  const [year, mon] = month.split('-').map(Number)
+  const nextMonth = mon === 12
+    ? `${year + 1}-01`
+    : `${year}-${String(mon + 1).padStart(2, '0')}`
+
+  const { count, error } = await supabase
+    .from('transactions')
+    .select('id', { count: 'exact', head: true })
+    .eq('household_id', householdId)
+    .is('category_id', null)
+    .eq('is_pending', false)
+    .gte('date', `${month}-01`)
+    .lt('date',  `${nextMonth}-01`)
+  if (error) throw error
+  return count ?? 0
 }
 
 export async function updateTransactionCategory(
