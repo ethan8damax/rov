@@ -29,3 +29,14 @@ export function fmtWhole(n: number): string {
 export function cn(...classes: (string | false | undefined | null)[]): string {
   return classes.filter(Boolean).join(' ')
 }
+
+export function getPastMonths(currentMonth: string, count: number): string[] {
+  const months: string[] = []
+  let [y, mo] = currentMonth.split('-').map(Number)
+  for (let i = 0; i < count; i++) {
+    months.unshift(`${y}-${pad(mo)}`)
+    mo -= 1
+    if (mo === 0) { mo = 12; y -= 1 }
+  }
+  return months
+}

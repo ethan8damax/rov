@@ -1,4 +1,4 @@
-import { pad, shiftMonth, formatMonthLabel, currentMonth, cn, fmt, fmtWhole } from './utils'
+import { pad, shiftMonth, formatMonthLabel, currentMonth, cn, fmt, fmtWhole, getPastMonths } from './utils'
 
 describe('pad', () => {
   it('pads single digits', () => expect(pad(3)).toBe('03'))
@@ -37,4 +37,18 @@ describe('fmt', () => {
 describe('fmtWhole', () => {
   it('formats number as whole dollar amount', () => expect(fmtWhole(42810)).toBe('$42,810'))
   it('uses absolute value', () => expect(fmtWhole(-100)).toBe('$100'))
+})
+
+describe('getPastMonths', () => {
+  it('returns a single-element array when count is 1', () => {
+    expect(getPastMonths('2026-06', 1)).toEqual(['2026-06'])
+  })
+
+  it('returns 3 months ending in the given month, oldest first', () => {
+    expect(getPastMonths('2026-06', 3)).toEqual(['2026-04', '2026-05', '2026-06'])
+  })
+
+  it('rolls back correctly across a year boundary', () => {
+    expect(getPastMonths('2026-02', 3)).toEqual(['2025-12', '2026-01', '2026-02'])
+  })
 })
