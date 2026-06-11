@@ -35,13 +35,27 @@ function JoinForm() {
 
     try {
       if (mode === 'signup') {
-        const { error: signUpErr } = await supabase.auth.signUp({ email, password })
+        const { data, error: signUpErr } = await supabase.auth.signUp({ email, password })
         if (signUpErr) throw signUpErr
+        if (!data.session) {
+          setError('Check your inbox and click the confirmation link, then come back here and sign in.')
+          setLoading(false)
+          return
+        }
       } else {
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
         if (signInErr) throw signInErr
       }
-      await redeemInviteAction(token, displayName || email.split('@')[0])
+      const result = await redeemInviteAction(token, displayName || email.split('@')[0])
+      if (result.error) {
+        if (result.error === 'not_authenticated') {
+          setError('Sign in first, then come back to this link to join.')
+        } else {
+          setError(result.error)
+        }
+        setLoading(false)
+        return
+      }
       router.push('/')
       router.refresh()
     } catch (err) {

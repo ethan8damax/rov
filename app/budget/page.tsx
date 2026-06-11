@@ -130,14 +130,14 @@ export default function BudgetPage() {
                   <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
                     Copy from {formatMonthLabel(shiftMonth(month, -1))}?
                   </span>
-                  <Button size="sm" intent="neutral" onClick={handleCarryover} disabled={carrying}>
+                  <Button size="sm" intent="primary" onClick={handleCarryover} disabled={carrying}>
                     {carrying ? 'Copying…' : 'Copy'}
                   </Button>
                   <Button size="sm" variant="ghost" intent="neutral" onClick={() => setShowCarryoverConfirm(false)}>Cancel</Button>
                 </>
               ) : (
                 <Button size="sm" variant="ghost" intent="neutral" onClick={() => setShowCarryoverConfirm(true)}>
-                  Copy<span className="hidden sm:inline"> from last month</span>
+                  Copy{' '}<span className="hidden sm:inline">from last month</span>
                 </Button>
               )}
             </div>

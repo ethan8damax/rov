@@ -21,17 +21,20 @@ export async function proxy(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user ?? null
+  // getUser() verifies the token with Supabase server — never trust getSession() alone
+  const { data: { user } } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/signup', '/join']
-  const isPublic = publicPaths.some(p => request.nextUrl.pathname.startsWith(p))
+  const { pathname } = request.nextUrl
+  const isPublicRoute = ['/login', '/signup', '/join'].some(p => pathname.startsWith(p))
+  const isApiRoute    = pathname.startsWith('/api/')
 
-  if (!user && !isPublic) {
+  // Unauthenticated users: redirect to login (let API routes return their own 401)
+  if (!user && !isPublicRoute && !isApiRoute) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  if (user && request.nextUrl.pathname === '/login') {
+  // Authenticated users: redirect away from login/signup but NOT /join (needed for invites)
+  if (user && (pathname === '/login' || pathname === '/signup')) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
