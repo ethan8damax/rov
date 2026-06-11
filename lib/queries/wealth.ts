@@ -169,7 +169,7 @@ export async function syncPlaidBalances(
             interest_rate:    0,
             plaid_account_id: acct.account_id,
           },
-          { onConflict: 'household_id,plaid_account_id' },
+          { onConflict: 'plaid_account_id' },
         )
         .select()
         .single()
@@ -194,7 +194,7 @@ export async function syncPlaidBalances(
             balance:          Math.max(0, balance),
             plaid_account_id: acct.account_id,
           },
-          { onConflict: 'household_id,plaid_account_id' },
+          { onConflict: 'plaid_account_id' },
         )
         .select()
         .single()
