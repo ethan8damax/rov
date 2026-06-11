@@ -22,7 +22,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 }
 
 export default function SettingsPage() {
-  const { householdId, loading: authLoading } = useAuth()
+  const { householdId, loading: authLoading, displayName } = useAuth()
   const [month,      setMonth]      = useState(() => currentMonth())
   const [incomes,      setIncomes]      = useState<IncomeSource[]>([])
   const [recurrings,   setRecurrings]   = useState<RecurringPayment[]>([])
@@ -93,32 +93,49 @@ export default function SettingsPage() {
             <MerchantRulesSection rules={rules} setRules={setRules} />
           )}
 
-          {/* Invite */}
+          {/* Invite / partner status */}
           <section className="mb-8">
-            <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Invite your partner</h2>
-            <Card>
-              <p className="text-[13px] mb-4" style={{ color: 'var(--color-muted)' }}>
-                Generate a one-time link to share with your partner. The link expires in 7 days.
-              </p>
-              <Button onClick={handleGenerateInvite} disabled={inviting} size="sm">
-                {inviting ? 'Generating…' : 'Generate invite link'}
-              </Button>
-              {inviteUrl && (
-                <div className="mt-4">
-                  <p className="text-[12px] mb-2" style={{ color: 'var(--color-muted)' }}>Share this link:</p>
-                  <div className="flex gap-2">
-                    <input
-                      readOnly value={inviteUrl}
-                      className="flex-1 h-8 px-3 rounded-lg text-[12px] focus:outline-none"
-                      style={{ background: 'var(--color-background)', border: '0.5px solid var(--color-border)', color: 'var(--color-foreground)' }}
-                    />
-                    <Button size="sm" variant="ghost" intent="neutral" onClick={() => navigator.clipboard.writeText(inviteUrl)}>
-                      Copy
-                    </Button>
-                  </div>
+            <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Household members</h2>
+            {owners.length >= 2 ? (
+              <Card>
+                <div className="flex flex-col gap-2">
+                  {owners.map(name => (
+                    <div key={name} className="flex items-center justify-between">
+                      <span className="text-[13px]" style={{ color: 'var(--color-foreground)' }}>{name}</span>
+                      {name === displayName && (
+                        <span className="text-[11px] px-1.5 py-px rounded-md" style={{ background: 'var(--color-primary-subtle)', color: 'var(--color-primary)' }}>
+                          you
+                        </span>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              )}
-            </Card>
+              </Card>
+            ) : (
+              <Card>
+                <p className="text-[13px] mb-4" style={{ color: 'var(--color-muted)' }}>
+                  Generate a one-time link to share with your partner. The link expires in 7 days.
+                </p>
+                <Button onClick={handleGenerateInvite} disabled={inviting} size="sm">
+                  {inviting ? 'Generating…' : 'Generate invite link'}
+                </Button>
+                {inviteUrl && (
+                  <div className="mt-4">
+                    <p className="text-[12px] mb-2" style={{ color: 'var(--color-muted)' }}>Share this link:</p>
+                    <div className="flex gap-2">
+                      <input
+                        readOnly value={inviteUrl}
+                        className="flex-1 h-8 px-3 rounded-lg text-[12px] focus:outline-none"
+                        style={{ background: 'var(--color-background)', border: '0.5px solid var(--color-border)', color: 'var(--color-foreground)' }}
+                      />
+                      <Button size="sm" variant="ghost" intent="neutral" onClick={() => navigator.clipboard.writeText(inviteUrl)}>
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            )}
           </section>
         </>
       )}
@@ -326,7 +343,7 @@ function MerchantRulesSection({ rules, setRules }: {
       <Card>
         {rules.map(rule => (
           <div key={rule.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
-            <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>{rule.merchant_name}</span>
+            <span className="flex-1 text-[13px] truncate" title={rule.merchant_name} style={{ color: 'var(--color-foreground)' }}>{rule.merchant_name}</span>
             <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>→</span>
             <span className="text-[13px] truncate max-w-[120px]" style={{ color: 'var(--color-foreground-secondary)' }}>{rule.category_name}</span>
             {pendingDeleteId === rule.id ? (

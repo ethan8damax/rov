@@ -12,9 +12,11 @@ import Button from '@/components/ui/Button'
 import PlaidLinkButton from '@/components/accounts/PlaidLinkButton'
 import AccountCard from '@/components/accounts/AccountCard'
 import TransactionList from '@/components/accounts/TransactionList'
+import { useToast } from '@/components/ui/Toast'
 
 export default function AccountsPage() {
   const { householdId } = useAuth()
+  const { toast } = useToast()
   const [month,        setMonth]        = useState(() => currentMonth())
   const [accounts,     setAccounts]     = useState<AccountWithBalance[]>([])
   const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
@@ -22,7 +24,6 @@ export default function AccountsPage() {
   const [loadingAcct,  setLoadingAcct]  = useState(true)
   const [loadingTx,    setLoadingTx]    = useState(true)
   const [syncing,      setSyncing]      = useState(false)
-  const [syncMsg,      setSyncMsg]      = useState<string | null>(null)
   const [error,        setError]        = useState<string | null>(null)
 
   const loadAccounts = useCallback(async () => {
@@ -60,12 +61,12 @@ export default function AccountsPage() {
 
   async function handleSync() {
     setSyncing(true)
-    setSyncMsg(null)
     setError(null)
     try {
       const res  = await fetch('/api/plaid/transactions')
       const data = await res.json()
-      setSyncMsg(`Synced ${data.synced ?? 0} new transactions`)
+      const count = data.synced ?? 0
+      toast(count === 0 ? 'Already up to date' : `Synced ${count} new transaction${count !== 1 ? 's' : ''}`, 'success')
       await loadTransactions()
     } catch {
       setError('Sync failed — please try again')
@@ -112,9 +113,6 @@ export default function AccountsPage() {
 
       {error && (
         <p className="text-[13px] mb-4" style={{ color: 'var(--color-negative)' }}>{error}</p>
-      )}
-      {syncMsg && (
-        <p className="text-[13px] mb-4" style={{ color: 'var(--color-positive)' }}>{syncMsg}</p>
       )}
 
       {loadingAcct ? (

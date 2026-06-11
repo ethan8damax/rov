@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import './globals.css'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { AuthProvider } from '@/lib/context/auth'
+import { ToastProvider } from '@/components/ui/Toast'
 import AppShell from '@/components/layout/AppShell'
 
 export const metadata: Metadata = {
@@ -17,9 +18,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <ThemeProvider>
           <AuthProvider>
-            <AppShell>
-              {children}
-            </AppShell>
+            <ToastProvider>
+              <AppShell>
+                {children}
+              </AppShell>
+            </ToastProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>
