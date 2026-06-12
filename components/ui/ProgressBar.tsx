@@ -1,4 +1,4 @@
-type Intent = 'primary' | 'positive' | 'negative' | 'neutral'
+type Intent = 'primary' | 'positive' | 'negative' | 'neutral' | 'harvest'
 
 interface ProgressBarProps {
   value: number     // 0–100
@@ -10,6 +10,7 @@ const intentColor: Record<Intent, string> = {
   positive: 'var(--color-positive)',
   negative: 'var(--color-negative)',
   neutral:  'var(--color-muted)',
+  harvest:  'var(--color-harvest)',
 }
 
 export default function ProgressBar({ value, intent = 'primary' }: ProgressBarProps) {

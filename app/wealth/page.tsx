@@ -370,7 +370,7 @@ function SavingsPodRow({ pod, onUpdate, onDelete }: {
         <input type="number" min="0" step="0.01" value={goal}     onChange={e => setGoal(e.target.value)}     onBlur={e => handleSave('goal',     e.target.value)} className={numCls} style={fieldStyle('goal')} />
         <InlineDelete onDelete={() => onDelete(pod.id)} label={pod.name} />
       </div>
-      {pod.goal > 0 && <div className="mt-1 mb-1"><ProgressBar value={Math.min(100, (pod.allotted / pod.goal) * 100)} intent="positive" /></div>}
+      {pod.goal > 0 && <div className="mt-1 mb-1"><ProgressBar value={Math.min(100, (pod.allotted / pod.goal) * 100)} intent="harvest" /></div>}
     </div>
   )
 }

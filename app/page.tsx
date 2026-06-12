@@ -182,7 +182,7 @@ export default function HomePage() {
               </div>
               {totalPodGoal > 0 && (
                 <div className="mt-2">
-                  <ProgressBar value={Math.min(100, (totalAllotted / totalPodGoal) * 100)} intent="positive" />
+                  <ProgressBar value={Math.min(100, (totalAllotted / totalPodGoal) * 100)} intent="harvest" />
                 </div>
               )}
             </section>
