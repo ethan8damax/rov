@@ -31,8 +31,16 @@ export default function Sidebar() {
     >
       {/* Logo */}
       <div className="flex items-center gap-2 px-4 py-5">
-        <div className="w-2 h-2 rounded-full" style={{ background: 'var(--color-primary)' }} />
-        <span className="text-[14px] font-medium" style={{ color: 'var(--color-foreground)' }}>
+        <svg viewBox="0 0 512 512" className="w-3.5 h-3.5" aria-hidden="true">
+          <path
+            d="M155 171h158q44 0 44 44v126"
+            fill="none"
+            stroke="var(--color-primary)"
+            strokeWidth="52"
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="font-serif text-[16px]" style={{ color: 'var(--color-foreground)' }}>
           Rov
         </span>
       </div>

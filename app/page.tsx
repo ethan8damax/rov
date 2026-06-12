@@ -215,7 +215,7 @@ export default function HomePage() {
 
           {categories.length === 0 && pods.length === 0 && (
             <div className="py-10">
-              <p className="text-[15px] font-medium mb-2" style={{ color: 'var(--color-foreground)' }}>Nothing set up yet</p>
+              <p className="font-serif text-[20px] mb-2" style={{ color: 'var(--color-foreground)' }}>Nothing set up yet</p>
               <p className="text-[13px] mb-5" style={{ color: 'var(--color-muted)' }}>
                 Add this month's budget categories and income to see your household's picture here.
               </p>
