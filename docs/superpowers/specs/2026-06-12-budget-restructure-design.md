@@ -23,8 +23,8 @@ Below the header, a tab row: **Spending · Income · Recurring**. Tabs are clien
   - Flexible categories (everything without a `recurring_payment_id`), current UI unchanged.
   - A muted "Fixed bills" divider, then the auto-seeded recurring categories.
   - The spending trend chart stays at the bottom of this tab.
-- **Income**: the income sources UI moves from Settings as-is (owner, name, expected, actual; add/edit/delete; month-scoped).
-- **Recurring**: the recurring payments list moves from Settings as-is (name, amount; add/edit/delete; not month-scoped).
+- **Income**: the income sources UI moves from Settings as-is (owner, name, expected, actual; add/edit/delete; month-scoped — follows the month nav like Spending).
+- **Recurring**: the recurring payments list moves from Settings as-is (name, amount; add/edit/delete). Recurring payments are not month-scoped; this tab shows the same list regardless of the month nav, with a muted note "Applies to every month" so the mismatch is explicit.
 
 ## 2. Recurring payments become fixed categories
 
@@ -37,21 +37,24 @@ alter table budget_categories
 
 **Seeding rule** — runs on Budget page load, after carryover (section 3), idempotent:
 
-> For each recurring payment R: if the viewed month has no category with `recurring_payment_id = R.id`, insert one: `{ name: R.name, month, expected: R.amount, actual: 0, recurring_payment_id: R.id }`.
+> For each recurring payment R with no category where `recurring_payment_id = R.id` in the viewed month:
+> 1. If the month has a flexible category whose name matches R.name (case-insensitive), **adopt it**: set its `recurring_payment_id = R.id` and leave its values alone. This is also the migration path — households that manually mirrored their bills as categories get them linked, not duplicated, the first month this ships.
+> 2. Otherwise insert: `{ name: R.name, month, expected: R.amount, actual: 0, recurring_payment_id: R.id }`.
 
-Seeding only applies to the current real-world month and future months; navigating to past months never inserts rows.
+Seeding only applies to the current real-world month and future months; navigating to past months never inserts or adopts rows.
 
 **Behavior of fixed rows in the Spending tab:**
 
 - Expected is read-only (edited via the Recurring tab); actual stays editable with the existing "from bank" hint.
 - They participate in all math (`totalBudgeted`, leftover, over-budget detection) and in transaction categorization + merchant rules, because they are ordinary `budget_categories` rows.
 - No inline delete on the fixed rows; they're managed from the Recurring tab.
+- Sorted alphabetically within the "Fixed bills" group.
 
-**Edit/delete semantics (Recurring tab → current month only, past months immutable):**
+**Edit/delete semantics (Recurring tab → propagate to the current real-world month and any future months already seeded; past months immutable):**
 
-- Rename R → rename the current month's linked category.
-- Change R.amount → update the current month's linked category `expected`.
-- Delete R → delete the current month's linked category if it has no categorized transactions; otherwise leave the row but it becomes a normal flexible category (`recurring_payment_id` set null by FK). Future months simply stop seeding it.
+- Rename R → rename linked categories in current + future months.
+- Change R.amount → update `expected` on linked categories in current + future months.
+- Delete R → in current + future months, delete each linked category that has no categorized transactions; any linked row with transactions stays and becomes a normal flexible category (`recurring_payment_id` nulled). Past months' rows are nulled by the FK (`on delete set null`) and remain as historical records.
 - Add R mid-month → seeded on next Budget page load (same rule as above).
 
 **Carryover interaction:** carryover copies only flexible categories (rows where `recurring_payment_id is null`). Fixed rows are excluded because seeding regenerates them from the source of truth; copying them too would duplicate.
@@ -60,9 +63,9 @@ Seeding only applies to the current real-world month and future months; navigati
 
 The "Copy from last month" button is removed. On Budget page load for the current month:
 
-1. If the month has zero categories AND zero income sources, and the previous month has at least one of either → run the existing `carryoverBudget` logic (flexible categories + income sources, name-conflict skip preserved).
+1. If the month has zero **flexible** categories (rows where `recurring_payment_id is null`) AND zero income sources, and the previous month has at least one of either → run the existing `carryoverBudget` logic (flexible categories + income sources, name-conflict skip preserved). Counting only flexible rows matters: a future month seeded early would otherwise look "non-empty" and never receive its carryover.
 2. Then run fixed-bill seeding (section 2).
-3. If step 1 copied anything, show a toast: **"Copied N categories and M income sources from <Month> · Undo"**, visible ~8 seconds.
+3. If step 1 copied anything, show a toast — **"Copied N categories and M income sources from <Month> · Undo"** — visible ~8 seconds. Wording adapts when one count is zero ("Copied 3 income sources from May · Undo").
 4. Undo deletes exactly the rows inserted in step 1 (by captured ids). Seeded fixed rows are not deleted (they regenerate anyway).
 
 Notes:
