@@ -61,11 +61,12 @@ export default function HomePage() {
 
   useEffect(() => { load() }, [load])
 
-  const totalBudgeted = useMemo(() => categories.reduce((s, c) => s + c.expected, 0), [categories])
-  const totalActual   = useMemo(() => categories.reduce((s, c) => s + c.actual,   0), [categories])
-  const leftover      = totalIncome - totalBudgeted
-  const totalAllotted = useMemo(() => pods.reduce((s, p) => s + p.allotted, 0), [pods])
-  const totalPodGoal  = useMemo(() => pods.reduce((s, p) => s + p.goal,     0), [pods])
+  const totalBudgeted  = useMemo(() => categories.reduce((s, c) => s + c.expected, 0), [categories])
+  const totalActual    = useMemo(() => categories.reduce((s, c) => s + c.actual,   0), [categories])
+  const leftToSpend    = totalIncome - totalActual
+  const unallocated    = totalIncome - totalBudgeted
+  const totalAllotted  = useMemo(() => pods.reduce((s, p) => s + p.allotted, 0), [pods])
+  const totalPodGoal   = useMemo(() => pods.reduce((s, p) => s + p.goal,     0), [pods])
 
   const topCategories = useMemo(
     () => [...categories].filter(c => c.actual > 0).sort((a, b) => b.actual - a.actual).slice(0, 5),
@@ -76,7 +77,7 @@ export default function HomePage() {
   const today       = new Date()
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
   const daysLeft    = daysInMonth - today.getDate()
-  const dailyRate   = daysLeft > 0 && leftover > 0 && totalIncome > 0 ? leftover / daysLeft : null
+  const dailyRate   = daysLeft > 0 && leftToSpend > 0 && totalIncome > 0 ? leftToSpend / daysLeft : null
 
   const greeting = (() => {
     const hour  = today.getHours()
@@ -91,13 +92,11 @@ export default function HomePage() {
 
   const todayLabel = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  const heroColor = leftover < 0
+  const heroColor = leftToSpend < 0
     ? 'var(--color-negative)'
-    : leftover === 0 && totalIncome > 0
+    : totalIncome > 0
       ? 'var(--color-positive)'
-      : totalIncome > 0
-        ? 'var(--color-warning)'
-        : 'var(--color-foreground)'
+      : 'var(--color-foreground)'
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
@@ -139,33 +138,29 @@ export default function HomePage() {
         </div>
       ) : (
         <>
-          {/* Left to budget hero */}
+          {/* Left to spend hero */}
           <section className="mb-6">
             <div className="rounded-xl px-5 py-4" style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }}>
               <p className="text-[12px] mb-1" style={{ color: 'var(--color-muted)' }}>
-                {leftover < 0 ? 'Over-allocated' : leftover === 0 && totalIncome > 0 ? 'Budget complete' : 'Left to budget'}
+                {leftToSpend < 0 ? 'Over budget' : 'Left to spend'}
               </p>
               <p className="text-[32px] font-medium tabular-nums" style={{ color: heroColor }}>
-                {leftover < 0 ? '−' : ''}{fmtWhole(Math.abs(leftover))}
+                {leftToSpend < 0 ? '−' : ''}{fmtWhole(Math.abs(leftToSpend))}
               </p>
               {dailyRate !== null && (
                 <p className="text-[13px] mt-1" style={{ color: 'var(--color-muted)' }}>
-                  ~{fmtWhole(dailyRate)}/day to allocate · {daysLeft} days left
+                  ~{fmtWhole(dailyRate)}/day left to spend · {daysLeft} days left
                 </p>
-              )}
-              {leftover === 0 && totalIncome > 0 && (
-                <p className="text-[13px] mt-1" style={{ color: 'var(--color-positive)' }}>Every dollar allocated</p>
               )}
               {totalIncome > 0 && (
                 <div className="mt-3">
-                  <ProgressBar value={Math.min(100, (totalBudgeted / totalIncome) * 100)} intent={leftover < 0 ? 'negative' : 'primary'} />
+                  <ProgressBar value={Math.min(100, (totalActual / totalIncome) * 100)} intent={leftToSpend < 0 ? 'negative' : 'primary'} />
                 </div>
               )}
               <div className="flex items-center gap-3 mt-2 text-[12px]" style={{ color: 'var(--color-muted)' }}>
                 <span>Income {fmtWhole(totalIncome)}</span>
                 <span>·</span>
-                <span>Budgeted {fmtWhole(totalBudgeted)}</span>
-                {totalActual > 0 && <><span>·</span><span>Spent {fmtWhole(totalActual)}</span></>}
+                <span>Spent {fmtWhole(totalActual)}</span>
               </div>
             </div>
           </section>
