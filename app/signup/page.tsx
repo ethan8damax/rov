@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { createHousehold } from '@/lib/queries/households'
 import Button from '@/components/ui/Button'
+import RovWordmark from '@/components/brand/RovWordmark'
+import BrandLore from '@/components/brand/BrandLore'
 
 const inputStyle = {
   background: 'var(--color-surface)',
@@ -50,12 +52,9 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--color-primary)' }} />
-          <span className="text-[18px] font-medium">Rov</span>
-        </div>
+        <RovWordmark />
 
-        <h1 className="text-[20px] font-medium mb-2">Create account</h1>
+        <h1 className="font-serif text-[24px] mb-2">Create account</h1>
         <p className="text-[13px] mb-6" style={{ color: 'var(--color-muted)' }}>
           You&apos;re setting up the household. Your partner joins via invite.
         </p>
@@ -108,6 +107,8 @@ export default function SignupPage() {
           Already have an account?{' '}
           <Link href="/login" style={{ color: 'var(--color-primary)' }}>Sign in</Link>
         </p>
+
+        <BrandLore />
       </div>
     </div>
   )

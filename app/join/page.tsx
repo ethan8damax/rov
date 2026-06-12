@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { redeemInviteAction } from '@/app/actions/invites'
 import Button from '@/components/ui/Button'
+import RovWordmark from '@/components/brand/RovWordmark'
+import BrandLore from '@/components/brand/BrandLore'
 
 const inputCls = 'w-full h-10 px-3 rounded-lg focus:outline-none transition-colors'
 const inputStyle = {
@@ -66,12 +68,9 @@ function JoinForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="flex items-center gap-2 mb-8">
-        <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--color-primary)' }} />
-        <span className="text-[18px] font-medium">Rov</span>
-      </div>
+      <RovWordmark />
 
-      <h1 className="text-[20px] font-medium mb-2">Join household</h1>
+      <h1 className="font-serif text-[24px] mb-2">Join household</h1>
       <p className="text-[13px] mb-6" style={{ color: 'var(--color-muted)' }}>
         {mode === 'signup' ? "You've been invited. Create an account to join." : "You've been invited. Sign in to join."}
       </p>
@@ -134,6 +133,8 @@ function JoinForm() {
           {loading ? 'Joining…' : 'Join household'}
         </Button>
       </form>
+
+      <BrandLore />
     </div>
   )
 }

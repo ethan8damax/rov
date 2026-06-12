@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import Button from '@/components/ui/Button'
+import RovWordmark from '@/components/brand/RovWordmark'
+import BrandLore from '@/components/brand/BrandLore'
 
 const inputStyle = {
   background: 'var(--color-surface)',
@@ -37,12 +39,9 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: 'var(--color-primary)' }} />
-          <span className="text-[18px] font-medium">Rov</span>
-        </div>
+        <RovWordmark />
 
-        <h1 className="text-[20px] font-medium mb-6">Sign in</h1>
+        <h1 className="font-serif text-[24px] mb-6">Sign in</h1>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <input
@@ -77,6 +76,8 @@ export default function LoginPage() {
             Create one
           </Link>
         </p>
+
+        <BrandLore />
       </div>
     </div>
   )
