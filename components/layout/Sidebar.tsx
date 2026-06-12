@@ -36,7 +36,7 @@ export default function Sidebar() {
             d="M155 171h158q44 0 44 44v126"
             fill="none"
             stroke="var(--color-primary)"
-            strokeWidth="52"
+            strokeWidth="72"
             strokeLinecap="round"
           />
         </svg>

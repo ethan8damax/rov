@@ -4,8 +4,8 @@ export default function BrandLore() {
       <p className="font-serif text-[15px] mb-2" style={{ color: 'var(--color-foreground-secondary)' }}>
         Budget with purpose. Live in rov.
       </p>
-      <p className="text-[12px] leading-relaxed" style={{ color: 'var(--color-muted)' }}>
-        <span style={{ color: 'var(--color-harvest)' }}>רוב</span> (rov) — in ancient Hebrew, an
+      <p className="text-[13px] leading-relaxed" style={{ color: 'var(--color-muted)' }}>
+        <span dir="rtl" style={{ color: 'var(--color-harvest)' }}>רוב</span>{' '}(rov) — in ancient Hebrew, an
         overwhelming fullness. Not the anxiety of &ldquo;enough,&rdquo; but the confidence of
         plenty. Zero-based budgeting is an act of abundance thinking: every dollar gets a home,
         nothing is wasted, nothing is forgotten.
