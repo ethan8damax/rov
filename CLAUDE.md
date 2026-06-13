@@ -31,10 +31,10 @@ npm run lint      # ESLint
 | Route | Purpose |
 |---|---|
 | `/` | Home dashboard — net worth, budget health, savings snapshot, top spending |
-| `/budget` | Budget categories, month nav, carryover from last month, spending trends |
+| `/budget` | Tabs: Spending (categories + fixed bills), Income, Recurring. Month nav, automatic carryover with undo, spending trends |
 | `/accounts` | Plaid-connected accounts, live balances, transaction feed with categorization |
 | `/wealth` | Net worth timeline, savings pods, assets, debts |
-| `/settings` | Income sources, recurring payments, Plaid connection manager, invite partner |
+| `/settings` | Merchant rules, household members, invite partner |
 | `/login` `/signup` `/join` | Auth flows |
 
 ## Architecture
@@ -63,7 +63,7 @@ components/
     ThemeProvider.tsx   # Dark/light mode via CSS class on <html>
   ui/                   # Button, Card, Badge, ProgressBar, MetricCard (ported from Life OS)
   dashboard/            # NetWorthCard, BudgetHealthCard, SavingsSnapshot, TopSpending
-  budget/               # CategoryRow, MonthNav, CarryoverButton, SpendingTrendChart
+  budget/               # IncomeTab, RecurringTab, SpendingTrendChart
   accounts/             # AccountCard, TransactionList, TransactionRow, PlaidLinkButton
   wealth/               # NetWorthChart, SavingsPodRow, AssetRow, DebtRow
 
@@ -97,7 +97,7 @@ public/
 ```sql
 households            (id uuid pk, name text)
 household_members     (id, household_id fk, user_id fk, display_name text)
-budget_categories     (id, household_id, name, month text, expected numeric, actual numeric)
+budget_categories     (id, household_id, name, month text, expected numeric, actual numeric, recurring_payment_id uuid nullable fk → recurring_payments)
 income_sources        (id, household_id, owner text, name, month text, expected numeric, actual numeric)
 recurring_payments    (id, household_id, name, amount numeric)
 savings_pods          (id, household_id, name, allotted numeric, goal numeric)
@@ -132,14 +132,11 @@ household_invites     (id, household_id, token text unique, expires_at timestamp
 
 **Net worth vs Plaid:** net worth snapshots use manually-entered `assets` and `debts` only — Plaid balances are reference data on the Accounts page, not auto-synced into assets. This avoids duplicate entries and accidental overwrites from pending states.
 
-## Carryover behavior
+## Carryover & fixed bills
 
-Triggered by "Copy from last month" button on the Budget page.
+Carryover is automatic. On Budget page load for the current month: if the month has no flexible categories and no income sources, both are copied from the prior month (names + expected, actual = 0, name conflicts skipped) and a toast offers undo. Undo deletes exactly the inserted rows and sets a localStorage flag (`rov-skip-carryover-<month>`) so that device doesn't re-copy.
 
-- **Budget categories**: copy `name` + `expected` from prior month; insert with `actual = 0`
-- **Income sources**: copy `owner` + `name` + `expected`; insert with `actual = 0`
-- **Recurring payments**: not month-scoped, no carryover needed
-- **Conflict handling**: skip any name that already exists in the current month — never overwrite
+Recurring payments seed "fixed" budget categories each month (current + future months, never past): a category linked via `recurring_payment_id` with expected = the payment amount. If a flexible category with the same name exists, it's adopted (linked) instead of duplicated. Fixed rows have read-only expected in the Spending tab and are edited/deleted from the Recurring tab; edits propagate to current + future months. Deleting a recurring payment deletes linked categories without transactions; rows with transactions become flexible categories. Carryover copies flexible categories only — seeding regenerates fixed ones.
 
 ## Invite flow
 

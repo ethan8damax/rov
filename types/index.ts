@@ -7,9 +7,12 @@ export interface BudgetCategory {
   month: string       // YYYY-MM
   expected: number
   actual: number
+  recurring_payment_id: string | null
   created_at: string
 }
-export type BudgetCategoryInsert = Omit<BudgetCategory, 'id' | 'created_at' | 'household_id'>
+export type BudgetCategoryInsert =
+  Omit<BudgetCategory, 'id' | 'created_at' | 'household_id' | 'recurring_payment_id'>
+  & { recurring_payment_id?: string | null }
 export type BudgetCategoryUpdate = Partial<Pick<BudgetCategory, 'name' | 'expected' | 'actual'>>
 
 export interface IncomeSource {

@@ -4,14 +4,25 @@ import { createContext, useContext, useState, useRef, useCallback, type ReactNod
 
 type ToastType = 'success' | 'error' | 'info'
 
+interface ToastAction {
+  label:   string
+  onPress: () => void
+}
+
 interface ToastItem {
   id:      number
   message: string
   type:    ToastType
+  action?: ToastAction
+}
+
+interface ToastOptions {
+  action?:   ToastAction
+  duration?: number
 }
 
 interface ToastContextType {
-  toast: (message: string, type?: ToastType) => void
+  toast: (message: string, type?: ToastType, options?: ToastOptions) => void
 }
 
 const ToastContext = createContext<ToastContextType>({ toast: () => {} })
@@ -20,10 +31,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([])
   const nextId = useRef(0)
 
-  const toast = useCallback((message: string, type: ToastType = 'info') => {
+  const toast = useCallback((message: string, type: ToastType = 'info', options?: ToastOptions) => {
     const id = ++nextId.current
-    setItems(prev => [...prev, { id, message, type }])
-    setTimeout(() => setItems(prev => prev.filter(t => t.id !== id)), 3000)
+    setItems(prev => [...prev, { id, message, type, action: options?.action }])
+    setTimeout(() => setItems(prev => prev.filter(t => t.id !== id)), options?.duration ?? 3000)
   }, [])
 
   return (
@@ -34,7 +45,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           {items.map(item => (
             <div
               key={item.id}
-              className="px-4 py-2.5 rounded-xl text-[13px] text-center"
+              className="px-4 py-2.5 rounded-xl text-[13px] text-center pointer-events-auto flex items-center gap-3"
               style={{
                 background:   item.type === 'success' ? 'var(--color-positive)' : item.type === 'error' ? 'var(--color-negative)' : 'var(--color-surface)',
                 color:        item.type === 'info'    ? 'var(--color-foreground)' : '#fff',
@@ -42,7 +53,20 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 maxWidth:     '320px',
               }}
             >
-              {item.message}
+              <span>{item.message}</span>
+              {item.action && (
+                <button
+                  type="button"
+                  className="font-medium underline flex-shrink-0"
+                  style={{ color: item.type === 'info' ? 'var(--color-primary)' : '#fff' }}
+                  onClick={() => {
+                    item.action!.onPress()
+                    setItems(prev => prev.filter(t => t.id !== item.id))
+                  }}
+                >
+                  {item.action.label}
+                </button>
+              )}
             </div>
           ))}
         </div>

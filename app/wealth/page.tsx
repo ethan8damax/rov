@@ -268,6 +268,7 @@ function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBal
 }) {
   const [newName, setNewName] = useState('')
   const [adding,  setAdding]  = useState(false)
+  const [showAdd, setShowAdd] = useState(false)
   const unallocated = savingsBalance - totalAllotted
 
   async function handleAdd(name: string) {
@@ -289,7 +290,8 @@ function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBal
 
   return (
     <section className="mb-8">
-      <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Savings pods</h2>
+      <h2 className="text-[14px] font-medium mb-1" style={{ color: 'var(--color-foreground)' }}>Savings pods</h2>
+      <p className="text-[12px] mb-3" style={{ color: 'var(--color-muted)' }}>Every dollar saved has a home.</p>
       <div className="rounded-xl px-5 py-4 mb-4" style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }}>
         <div className="flex items-center gap-4 flex-wrap">
           <MetricCard label="Savings balance" value={fmtWhole(savingsBalance)} />
@@ -302,7 +304,7 @@ function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBal
           <MetricCard label="Total goal" value={fmtWhole(totalPodGoal)} />
         </div>
       </div>
-      <Card className="mb-4">
+      <Card>
         <div className="flex items-center gap-2 pb-2 mb-1" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
           <span className="flex-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>Pod</span>
           <span className="w-[80px] text-[11px] text-right" style={{ color: 'var(--color-muted)' }}>Allotted</span>
@@ -318,17 +320,22 @@ function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBal
             onDelete={async (id) => { setPods(prev => prev.filter(x => x.id !== id)); await deleteSavingsPod(id) }}
           />
         ))}
-      </Card>
-      <Card>
-        <form onSubmit={e => { e.preventDefault(); handleAdd(newName) }} className="flex gap-2 mb-2">
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Pod name" className={`flex-1 min-w-0 ${inputCls}`} style={inputStyle} />
-          <Button type="submit" size="sm" disabled={!newName.trim() || adding}>Add</Button>
-        </form>
-        <div className="flex flex-wrap gap-1">
-          {DEFAULT_PODS.filter(n => !pods.find(p => p.name.toLowerCase() === n.toLowerCase())).map(n => (
-            <button key={n} type="button" onClick={() => handleAdd(n)} className="px-2 py-[3px] rounded-md text-[11px] hover:opacity-80 transition-opacity" style={{ background: 'var(--color-primary-subtle)', color: 'var(--color-primary)' }}>{n}</button>
-          ))}
-        </div>
+        {showAdd ? (
+          <div className="mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
+            <form onSubmit={e => { e.preventDefault(); handleAdd(newName) }} className="flex gap-2 mb-2">
+              <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Pod name" autoFocus className={`flex-1 min-w-0 ${inputCls}`} style={inputStyle} />
+              <Button type="submit" size="sm" disabled={!newName.trim() || adding}>Add</Button>
+              <Button type="button" size="sm" variant="ghost" intent="neutral" onClick={() => setShowAdd(false)}>Cancel</Button>
+            </form>
+            <div className="flex flex-wrap gap-1">
+              {DEFAULT_PODS.filter(n => !pods.find(p => p.name.toLowerCase() === n.toLowerCase())).map(n => (
+                <button key={n} type="button" onClick={() => handleAdd(n)} className="px-2 py-[3px] rounded-md text-[11px] hover:opacity-80 transition-opacity" style={{ background: 'var(--color-primary-subtle)', color: 'var(--color-primary)' }}>{n}</button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setShowAdd(true)} className="mt-3 text-[13px]" style={{ color: 'var(--color-muted)' }}>+ New pod</button>
+        )}
       </Card>
     </section>
   )
@@ -384,6 +391,7 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
   const [newType,    setNewType]    = useState('checking')
   const [newBalance, setNewBalance] = useState('')
   const [adding,     setAdding]     = useState(false)
+  const [showAdd,    setShowAdd]    = useState(false)
   const [savedId,    setSavedId]    = useState<string | null>(null)
 
   async function handleAdd(e: React.FormEvent) {
@@ -401,7 +409,7 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
   return (
     <section className="mb-8">
       <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Assets</h2>
-      <Card className="mb-4">
+      <Card>
         {assets.length === 0 ? (
           <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No assets yet — add accounts, investments, or property.</p>
         ) : assets.map(a => (
@@ -426,16 +434,19 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
             <InlineDelete onDelete={() => { setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }} label={a.name} />
           </div>
         ))}
-      </Card>
-      <Card>
-        <form onSubmit={handleAdd} className="flex gap-2 flex-wrap">
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Account name" className={`flex-1 min-w-[120px] ${inputCls}`} style={inputStyle} />
-          <select value={newType} onChange={e => setNewType(e.target.value)} className={`w-[120px] ${inputCls}`} style={inputStyle}>
-            {ASSET_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
-          </select>
-          <input type="number" min="0" step="0.01" value={newBalance} onChange={e => setNewBalance(e.target.value)} placeholder="Balance" className={`w-[96px] ${inputCls}`} style={inputStyle} />
-          <Button type="submit" size="sm" disabled={!newName.trim() || !newBalance || adding}>Add</Button>
-        </form>
+        {showAdd ? (
+          <form onSubmit={handleAdd} className="flex gap-2 flex-wrap mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Account name" autoFocus className={`flex-1 min-w-[120px] ${inputCls}`} style={inputStyle} />
+            <select value={newType} onChange={e => setNewType(e.target.value)} className={`w-[120px] ${inputCls}`} style={inputStyle}>
+              {ASSET_TYPES.map(t => <option key={t} value={t}>{t.replace('_', ' ')}</option>)}
+            </select>
+            <input type="number" min="0" step="0.01" value={newBalance} onChange={e => setNewBalance(e.target.value)} placeholder="Balance" className={`w-[96px] ${inputCls}`} style={inputStyle} />
+            <Button type="submit" size="sm" disabled={!newName.trim() || !newBalance || adding}>Add</Button>
+            <Button type="button" size="sm" variant="ghost" intent="neutral" onClick={() => setShowAdd(false)}>Cancel</Button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setShowAdd(true)} className="mt-3 text-[13px]" style={{ color: 'var(--color-muted)' }}>+ Add asset</button>
+        )}
       </Card>
     </section>
   )
@@ -448,6 +459,7 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
   const [newOwner,  setNewOwner]  = useState('')
   const [newAmount, setNewAmount] = useState('')
   const [adding,    setAdding]    = useState(false)
+  const [showAdd,   setShowAdd]   = useState(false)
   const [savedId,   setSavedId]   = useState<string | null>(null)
 
   async function handleAdd(e: React.FormEvent) {
@@ -465,7 +477,7 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
   return (
     <section className="mb-8">
       <h2 className="text-[14px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>Debts</h2>
-      <Card className="mb-4">
+      <Card>
         {debts.length === 0 ? (
           <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No debts recorded — add loans or credit card balances.</p>
         ) : debts.map(d => (
@@ -490,14 +502,17 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
             <InlineDelete onDelete={() => { setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }} label={d.name} />
           </div>
         ))}
-      </Card>
-      <Card>
-        <form onSubmit={handleAdd} className="flex gap-2 flex-wrap">
-          <input value={newName}   onChange={e => setNewName(e.target.value)}   placeholder="Debt name"    className={`flex-1 min-w-[100px] ${inputCls}`} style={inputStyle} />
-          <input value={newOwner}  onChange={e => setNewOwner(e.target.value)}  placeholder="Owner"        className={`w-[80px] ${inputCls}`} style={inputStyle} />
-          <input type="number" min="0" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Amount" className={`w-[96px] ${inputCls}`} style={inputStyle} />
-          <Button type="submit" size="sm" disabled={!newName.trim() || !newOwner.trim() || !newAmount || adding}>Add</Button>
-        </form>
+        {showAdd ? (
+          <form onSubmit={handleAdd} className="flex gap-2 flex-wrap mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
+            <input value={newName}   onChange={e => setNewName(e.target.value)}   placeholder="Debt name" autoFocus className={`flex-1 min-w-[100px] ${inputCls}`} style={inputStyle} />
+            <input value={newOwner}  onChange={e => setNewOwner(e.target.value)}  placeholder="Owner"     className={`w-[80px] ${inputCls}`} style={inputStyle} />
+            <input type="number" min="0" step="0.01" value={newAmount} onChange={e => setNewAmount(e.target.value)} placeholder="Amount" className={`w-[96px] ${inputCls}`} style={inputStyle} />
+            <Button type="submit" size="sm" disabled={!newName.trim() || !newOwner.trim() || !newAmount || adding}>Add</Button>
+            <Button type="button" size="sm" variant="ghost" intent="neutral" onClick={() => setShowAdd(false)}>Cancel</Button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setShowAdd(true)} className="mt-3 text-[13px]" style={{ color: 'var(--color-muted)' }}>+ Add debt</button>
+        )}
       </Card>
     </section>
   )

@@ -52,3 +52,6 @@ next-env.d.ts
 
 # debug scripts
 rov-debug.mjs
+
+# brainstorming session artifacts
+.superpowers/
