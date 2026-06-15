@@ -48,8 +48,10 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const balance  = account.balances.available ?? account.balances.current
   const isCredit = account.type === 'credit'
+  const balance  = isCredit
+    ? account.balances.current ?? account.balances.available
+    : account.balances.available ?? account.balances.current
   const dotColor = institutionColor(account.institution_name)
   const initial  = account.institution_name.charAt(0).toUpperCase()
 
