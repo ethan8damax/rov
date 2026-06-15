@@ -9,6 +9,7 @@ import {
   getNetWorthSnapshots, createNetWorthSnapshot, deleteNetWorthSnapshot,
   syncPlaidBalances,
 } from '@/lib/queries/wealth'
+import { getSavingsPodAccounts, setSavingsPodAccount } from '@/lib/queries/accounts'
 import { currentMonth, fmtWhole, sanitizeError } from '@/lib/utils'
 import type { SavingsPod, Asset, Debt, NetWorthSnapshot, AssetUpdate, DebtUpdate, SavingsPodUpdate } from '@/types'
 import Card from '@/components/ui/Card'
@@ -89,7 +90,7 @@ function NetWorthChart({ snapshots }: { snapshots: NetWorthSnapshot[] }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function WealthPage() {
-  const { loading: authLoading } = useAuth()
+  const { loading: authLoading, householdId } = useAuth()
   const [pods,       setPods]      = useState<SavingsPod[]>([])
   const [assets,     setAssets]    = useState<Asset[]>([])
   const [debts,      setDebts]     = useState<Debt[]>([])
@@ -101,16 +102,19 @@ export default function WealthPage() {
   const [syncing,            setSyncing]            = useState(false)
   const [syncMsg,            setSyncMsg]            = useState<string | null>(null)
 
+  const [podAccounts, setPodAccounts] = useState<PodAccount[]>([])
+
   const load = useCallback(async () => {
     if (authLoading) return
     setLoading(true); setError(null)
     try {
-      const [p, a, d, s] = await Promise.all([getSavingsPods(), getAssets(), getDebts(), getNetWorthSnapshots()])
-      setPods(p); setAssets(a); setDebts(d); setSnapshots(s)
+      const podFetch = householdId ? getSavingsPodAccounts(householdId) : Promise.resolve([])
+      const [p, a, d, s, pods] = await Promise.all([getSavingsPods(), getAssets(), getDebts(), getNetWorthSnapshots(), podFetch])
+      setPods(p); setAssets(a); setDebts(d); setSnapshots(s); setPodAccounts(pods)
     } catch (err) {
       setError(sanitizeError(err))
     } finally { setLoading(false) }
-  }, [authLoading])
+  }, [authLoading, householdId])
 
   useEffect(() => { load() }, [load])
 
@@ -119,7 +123,16 @@ export default function WealthPage() {
   const netWorth      = totalAssets - totalDebt
   const totalAllotted = useMemo(() => pods.reduce((s, p) => s + p.allotted, 0), [pods])
   const totalPodGoal  = useMemo(() => pods.reduce((s, p) => s + p.goal, 0), [pods])
-  const savingsBalance = useMemo(() => assets.filter(a => a.type === 'savings').reduce((s, a) => s + a.balance, 0), [assets])
+  const podAccountIds = useMemo(
+    () => new Set(podAccounts.filter(a => a.is_savings_pod).map(a => a.account_id)),
+    [podAccounts]
+  )
+  const savingsBalance = useMemo(() =>
+    podAccountIds.size > 0
+      ? assets.filter(a => a.plaid_account_id != null && podAccountIds.has(a.plaid_account_id)).reduce((s, a) => s + a.balance, 0)
+      : assets.filter(a => a.type === 'savings').reduce((s, a) => s + a.balance, 0),
+    [assets, podAccountIds]
+  )
 
   async function handleBalanceSync() {
     setSyncing(true)
@@ -246,7 +259,16 @@ export default function WealthPage() {
             )}
           </section>
 
-          <SavingsSection pods={pods} setPods={setPods} totalAllotted={totalAllotted} totalPodGoal={totalPodGoal} savingsBalance={savingsBalance} />
+          <SavingsSection
+            pods={pods} setPods={setPods}
+            totalAllotted={totalAllotted} totalPodGoal={totalPodGoal}
+            savingsBalance={savingsBalance}
+            podAccounts={podAccounts}
+            onPodAccountToggle={(accountId, value) => {
+              setSavingsPodAccount(accountId, value)
+              setPodAccounts(prev => prev.map(a => a.account_id === accountId ? { ...a, is_savings_pod: value } : a))
+            }}
+          />
           <AssetsSection assets={assets} setAssets={setAssets} />
           <DebtsSection debts={debts} setDebts={setDebts} />
         </>
@@ -259,16 +281,21 @@ export default function WealthPage() {
 
 const DEFAULT_PODS = ['Emergency fund', 'Down payment', 'Adventures', 'General savings']
 
-function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBalance }: {
+type PodAccount = { account_id: string; name: string; mask: string; is_savings_pod: boolean }
+
+function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBalance, podAccounts, onPodAccountToggle }: {
   pods: SavingsPod[]
   setPods: React.Dispatch<React.SetStateAction<SavingsPod[]>>
   totalAllotted: number
   totalPodGoal: number
   savingsBalance: number
+  podAccounts: PodAccount[]
+  onPodAccountToggle: (accountId: string, value: boolean) => void
 }) {
-  const [newName, setNewName] = useState('')
-  const [adding,  setAdding]  = useState(false)
-  const [showAdd, setShowAdd] = useState(false)
+  const [newName,           setNewName]           = useState('')
+  const [adding,            setAdding]            = useState(false)
+  const [showAdd,           setShowAdd]           = useState(false)
+  const [showAccountConfig, setShowAccountConfig] = useState(false)
   const unallocated = savingsBalance - totalAllotted
 
   async function handleAdd(name: string) {
@@ -303,6 +330,42 @@ function SavingsSection({ pods, setPods, totalAllotted, totalPodGoal, savingsBal
           />
           <MetricCard label="Total goal" value={fmtWhole(totalPodGoal)} />
         </div>
+        {podAccounts.length > 0 && (
+          <div className="mt-3 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
+            <button
+              type="button"
+              onClick={() => setShowAccountConfig(v => !v)}
+              className="text-[11px]"
+              style={{ color: 'var(--color-muted)' }}
+            >
+              Configure accounts {showAccountConfig ? '▴' : '▾'}
+            </button>
+            {showAccountConfig && (
+              <div
+                className="mt-2 rounded-lg overflow-hidden"
+                style={{ border: '0.5px solid var(--color-border)', background: 'var(--color-background)' }}
+              >
+                {podAccounts.map(acct => (
+                  <label
+                    key={acct.account_id}
+                    className="flex items-center gap-2 px-3 py-2 cursor-pointer"
+                    style={{ borderBottom: '0.5px solid var(--color-border)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={acct.is_savings_pod}
+                      onChange={e => onPodAccountToggle(acct.account_id, e.target.checked)}
+                    />
+                    <span className="text-[12px] flex-1" style={{ color: 'var(--color-foreground)' }}>
+                      {acct.name}
+                      {acct.mask && <span style={{ color: 'var(--color-muted)' }}> ···{acct.mask}</span>}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
       <Card>
         <div className="flex items-center gap-2 pb-2 mb-1" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
