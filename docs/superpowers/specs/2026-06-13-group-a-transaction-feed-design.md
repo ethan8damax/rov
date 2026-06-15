@@ -70,14 +70,22 @@ No index needed — it's a low-cardinality boolean and queries filter by `househ
 
 ### UI — TransactionRow
 
-Add `"N/A"` as a special `<option value="__na__">N/A — transfer or ignore</option>` at the top of the category select (above "Uncategorized"). When selected:
-- Call `markTransactionIgnored(id)`
-- Call `onIgnored?.()` (new optional callback) so the parent can remove it from the triage list
-- Visually: set select text to "N/A" in muted color (same as "Uncategorized" style)
+New prop: `isIgnored: boolean`.
 
-In the full list, ignored transactions remain visible but the category select shows "N/A" in muted color. No special hiding or strikethrough — they're just treated as categorized for the purpose of the nudge count.
+Add `"N/A"` as a special `<option value="__na__">N/A — transfer or ignore</option>` at the top of the category select (above "Uncategorized").
 
-No merchant rule is saved for N/A (unlike regular categorization).
+**Initial select value**: `useState(isIgnored ? '__na__' : (categoryId ?? ''))` — so already-ignored transactions show "N/A" selected when loaded from the full list.
+
+**When N/A is selected:**
+- Call `markTransactionIgnored(id)` — sets `is_ignored = true`, clears `category_id`
+- Call `onIgnored?.(id)` so the parent removes it from triage
+- No merchant rule is saved
+
+**When a real category is selected after N/A:**
+- Call `updateTransactionCategory(id, categoryId)` as usual
+- Also call a new `unignoreTransaction(id)` helper that sets `is_ignored = false`, so the transaction no longer appears as N/A on next load
+
+In the full list, ignored transactions remain visible with the select showing "N/A" in muted color. No hiding or strikethrough — they're just excluded from the nudge count and triage.
 
 ---
 
@@ -89,9 +97,11 @@ Rendered in `AccountsPage` directly above `<TransactionList>`, inside a `<Triage
 
 ### Data
 
+Derived in `AccountsPage` (see TransactionRow changes for `resolvedIds`):
+
 ```ts
 const uncategorized = transactions.filter(
-  t => !t.category_id && !t.is_pending && !t.is_ignored
+  t => !t.category_id && !t.is_pending && !t.is_ignored && !resolvedIds.has(t.id)
 )
 ```
 
@@ -183,11 +193,10 @@ No changes needed — it already renders whatever transactions it receives.
 | File | Change |
 |---|---|
 | `types/index.ts` | Add `is_ignored` to `TransactionWithCategory` |
-| `lib/queries/accounts.ts` | Add `is_ignored` to select + return; filter in `getUncategorizedCount`; add `markTransactionIgnored` |
+| `lib/queries/accounts.ts` | Add `is_ignored` to select + return; filter in `getUncategorizedCount`; add `markTransactionIgnored` + `unignoreTransaction` |
 | `app/api/plaid/accounts/route.ts` | `accountsBalanceGet` instead of `accountsGet` |
-| `app/api/plaid/transactions/route.ts` | Add DB migration note (schema change required first) |
 | `app/accounts/page.tsx` | Auto-sync logic; pull-to-refresh; triage section; pagination state + controls; `resolvedIds` set; `handleResolved` callback |
-| `components/accounts/TransactionRow.tsx` | N/A option in select; `onCategorized` + `onIgnored` callbacks |
+| `components/accounts/TransactionRow.tsx` | `isIgnored` prop; N/A option in select; `onCategorized` + `onIgnored` callbacks; `unignoreTransaction` on re-categorize |
 | `components/accounts/TriageSection.tsx` | New component — flat list of uncategorized rows |
 
 DB migration (Supabase MCP):
