@@ -6,22 +6,28 @@ import { fmtWhole } from '@/lib/utils'
 import type { IncomeSource } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
+import { useToast } from '@/components/ui/Toast'
 
 const inputCls = 'h-8 px-3 rounded-lg focus:outline-none transition-colors'
 const inputStyle = { fontSize: '16px', background: 'var(--color-background)', border: '0.5px solid var(--color-border)', color: 'var(--color-foreground)' }
 const numCls = 'w-[88px] h-7 px-2 rounded-md tabular-nums text-right focus:outline-none transition-colors'
 
-export default function IncomeTab({ month, incomes, setIncomes, owners }: {
+export default function IncomeTab({ month, incomes, setIncomes, owners, bankSums }: {
   month: string
   incomes: IncomeSource[]
   setIncomes: React.Dispatch<React.SetStateAction<IncomeSource[]>>
   owners: string[]
+  bankSums: { income_source_id: string; total: number }[]
 }) {
+  const { toast } = useToast()
   const [newOwner, setNewOwner] = useState('')
   const [newName,  setNewName]  = useState('')
   const [adding,   setAdding]   = useState(false)
+  const [syncing,  setSyncing]  = useState(false)
 
   useEffect(() => { if (owners.length > 0 && !newOwner) setNewOwner(owners[0]) }, [owners, newOwner])
+
+  const hasBankSums = bankSums.some(b => incomes.find(i => i.id === b.income_source_id))
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
@@ -41,10 +47,40 @@ export default function IncomeTab({ month, incomes, setIncomes, owners }: {
     setIncomes(prev => prev.map(i => i.id === id ? updated : i))
   }
 
+  async function handleSyncActuals() {
+    setSyncing(true)
+    try {
+      const toSync = incomes.filter(i => bankSums.find(b => b.income_source_id === i.id))
+      const updated = await Promise.all(
+        toSync.map(i => updateIncomeSource(i.id, { actual: bankSums.find(b => b.income_source_id === i.id)!.total }))
+      )
+      setIncomes(prev => prev.map(i => updated.find(u => u.id === i.id) ?? i))
+      toast(`Updated ${updated.length} income ${updated.length === 1 ? 'source' : 'sources'} from bank`, 'success')
+    } catch {
+      toast('Failed to sync — please try again', 'error')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
   const total = incomes.reduce((s, i) => s + i.expected, 0)
 
   return (
     <Card>
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[13px] font-medium" style={{ color: 'var(--color-foreground)' }}>Income sources</span>
+        {hasBankSums && (
+          <button
+            type="button"
+            onClick={handleSyncActuals}
+            disabled={syncing}
+            className="text-[11px] disabled:opacity-40"
+            style={{ color: 'var(--color-primary)' }}
+          >
+            {syncing ? 'Syncing…' : 'Sync from bank'}
+          </button>
+        )}
+      </div>
       <div className="flex items-center gap-2 pb-2 mb-1" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
         <span className="flex-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>Source</span>
         <span className="w-[88px] text-[11px] text-right" style={{ color: 'var(--color-muted)' }}>Expected</span>

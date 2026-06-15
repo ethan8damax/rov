@@ -7,7 +7,7 @@ import {
   ensureMonthSetup, undoCarryover, type CarryoverResult,
 } from '@/lib/queries/finance'
 import { getHouseholdMemberNames } from '@/lib/queries/households'
-import { getTransactionSumsByCategory } from '@/lib/queries/accounts'
+import { getTransactionSumsByCategory, getTransactionSumsByIncomeSource } from '@/lib/queries/accounts'
 import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths, sanitizeError } from '@/lib/utils'
 import type { BudgetCategory, IncomeSource, RecurringPayment } from '@/types'
 import { useAuth } from '@/lib/context/auth'
@@ -51,6 +51,7 @@ export default function BudgetPage() {
   const [addingCat,      setAddingCat]      = useState(false)
   const [pastCategories, setPastCategories] = useState<BudgetCategory[]>([])
   const [bankSums,       setBankSums]       = useState<{ category_id: string; total: number }[]>([])
+  const [incomeBankSums, setIncomeBankSums] = useState<{ income_source_id: string; total: number }[]>([])
   const [showTrends,     setShowTrends]     = useState(false)
   const [syncing,        setSyncing]        = useState(false)
   const loadRef = useRef<() => void>(() => {})
@@ -79,13 +80,14 @@ export default function BudgetPage() {
       const skip = localStorage.getItem(`rov-skip-carryover-${month}`) === '1'
       const copied = await ensureMonthSetup(month, skip)
       const trendMonths = getPastMonths(month, 6)
-      const [cats, incs, recs, names, pastCats, sums] = await Promise.all([
+      const [cats, incs, recs, names, pastCats, sums, incSums] = await Promise.all([
         getBudgetCategories(month),
         getIncomeSources(month),
         getRecurringPayments(),
         getHouseholdMemberNames(),
         getBudgetCategoriesPastMonths(trendMonths),
         householdId ? getTransactionSumsByCategory(householdId, month) : Promise.resolve([]),
+        householdId ? getTransactionSumsByIncomeSource(householdId, month) : Promise.resolve([]),
       ])
       setCategories(cats)
       setIncomes(incs)
@@ -93,6 +95,7 @@ export default function BudgetPage() {
       setOwners(names)
       setPastCategories(pastCats)
       setBankSums(sums)
+      setIncomeBankSums(incSums)
       if (copied) showCarryoverToast(copied, month)
     } catch (err) {
       setError(sanitizeError(err))
@@ -268,7 +271,7 @@ export default function BudgetPage() {
           </div>
 
           {tab === 'income' && (
-            <IncomeTab month={month} incomes={incomes} setIncomes={setIncomes} owners={owners} />
+            <IncomeTab month={month} incomes={incomes} setIncomes={setIncomes} owners={owners} bankSums={incomeBankSums} />
           )}
 
           {tab === 'recurring' && (
