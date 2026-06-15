@@ -216,3 +216,25 @@ export async function updateAccountName(plaidAccountId: string, name: string): P
     .eq('account_id', plaidAccountId)
   if (error) throw error
 }
+
+export async function getSavingsPodAccounts(
+  householdId: string,
+): Promise<{ account_id: string; name: string; mask: string; is_savings_pod: boolean }[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('plaid_accounts')
+    .select('account_id, name, mask, is_savings_pod')
+    .eq('household_id', householdId)
+    .order('name')
+  if (error) throw error
+  return data ?? []
+}
+
+export async function setSavingsPodAccount(accountId: string, value: boolean): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('plaid_accounts')
+    .update({ is_savings_pod: value })
+    .eq('account_id', accountId)
+  if (error) throw error
+}
