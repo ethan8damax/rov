@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import type { BudgetCategory } from '@/types'
+import type { BudgetCategory, IncomeSource } from '@/types'
 import type { TransactionWithCategory } from '@/lib/queries/accounts'
 import TransactionRow from './TransactionRow'
 import { fmt } from '@/lib/utils'
@@ -9,6 +9,7 @@ import { fmt } from '@/lib/utils'
 interface TransactionListProps {
   transactions:      TransactionWithCategory[]
   categories:        BudgetCategory[]
+  incomeSources:     IncomeSource[]
   householdId:       string
   month:             string
   loading?:          boolean
@@ -28,7 +29,7 @@ function Skeleton() {
 }
 
 export default function TransactionList({
-  transactions, categories, householdId, month, loading, onCategoryCreated,
+  transactions, categories, incomeSources, householdId, month, loading, onCategoryCreated,
 }: TransactionListProps) {
   const grouped = useMemo(() => {
     const map: Record<string, TransactionWithCategory[]> = {}
@@ -85,9 +86,12 @@ export default function TransactionList({
                 isIgnored={t.is_ignored}
                 categoryId={t.category_id}
                 categoryName={t.category_name}
+                incomeSourceId={t.income_source_id}
+                incomeSourceName={t.income_source_name}
                 accountName={t.account_name}
                 accountMask={t.account_mask}
                 categories={categories}
+                incomeSources={incomeSources}
                 householdId={householdId}
                 month={month}
                 onCategoryCreated={onCategoryCreated}

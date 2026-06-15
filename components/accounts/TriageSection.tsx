@@ -1,12 +1,13 @@
 'use client'
 
-import type { BudgetCategory } from '@/types'
+import type { BudgetCategory, IncomeSource } from '@/types'
 import type { TransactionWithCategory } from '@/lib/queries/accounts'
 import TransactionRow from './TransactionRow'
 
 interface TriageSectionProps {
   transactions:      TransactionWithCategory[]
   categories:        BudgetCategory[]
+  incomeSources:     IncomeSource[]
   householdId:       string
   month:             string
   onCategoryCreated: (cat: BudgetCategory) => void
@@ -14,7 +15,7 @@ interface TriageSectionProps {
 }
 
 export default function TriageSection({
-  transactions, categories, householdId, month, onCategoryCreated, onResolved,
+  transactions, categories, incomeSources, householdId, month, onCategoryCreated, onResolved,
 }: TriageSectionProps) {
   if (transactions.length === 0) return null
 
@@ -43,9 +44,12 @@ export default function TriageSection({
             isIgnored={t.is_ignored}
             categoryId={t.category_id}
             categoryName={t.category_name}
+            incomeSourceId={t.income_source_id}
+            incomeSourceName={t.income_source_name}
             accountName={t.account_name}
             accountMask={t.account_mask}
             categories={categories}
+            incomeSources={incomeSources}
             householdId={householdId}
             month={month}
             onCategoryCreated={onCategoryCreated}
