@@ -106,7 +106,8 @@ export default function BudgetPage() {
   const totalIncome   = useMemo(() => incomes.reduce((s, i) => s + i.expected, 0), [incomes])
   const totalBudgeted = useMemo(() => categories.reduce((s, c) => s + c.expected, 0), [categories])
   const totalActual   = useMemo(() => categories.reduce((s, c) => s + c.actual,   0), [categories])
-  const leftover      = totalIncome - totalBudgeted
+  const leftover      = Math.round(totalIncome - totalBudgeted)
+  const leftToSpend   = Math.round(totalIncome - totalActual)
 
   const flexible = useMemo(() => categories.filter(c => !c.recurring_payment_id), [categories])
   const fixed    = useMemo(() => categories.filter(c => c.recurring_payment_id),  [categories])
@@ -141,6 +142,11 @@ export default function BudgetPage() {
       : totalIncome > 0
         ? 'var(--color-warning)'
         : 'var(--color-foreground)'
+  const leftToSpendColor = leftToSpend < 0 && totalIncome > 0
+    ? 'var(--color-negative)'
+    : totalIncome > 0
+      ? 'var(--color-positive)'
+      : 'var(--color-foreground)'
   const trendMonths   = getPastMonths(month, 6)
 
   return (
