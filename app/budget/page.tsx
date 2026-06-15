@@ -379,9 +379,13 @@ function BudgetCategoryRow({
   const [savingField,    setSavingField]    = useState<'expected' | 'actual' | null>(null)
   const [savedField,     setSavedField]     = useState<'expected' | 'actual' | null>(null)
   const [confirmDelete,  setConfirmDelete]  = useState(false)
+  const [editingName,  setEditingName]  = useState(false)
+  const [draftName,    setDraftName]    = useState(category.name)
+  const nameInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { setExp(String(category.expected)) }, [category.expected])
   useEffect(() => { setAct(String(category.actual))   }, [category.actual])
+  useEffect(() => { setDraftName(category.name) }, [category.name])
 
   async function handleSave(field: 'expected' | 'actual', raw: string) {
     const val = parseFloat(raw)
@@ -394,6 +398,13 @@ function BudgetCategoryRow({
     } finally {
       setSavingField(null)
     }
+  }
+
+  async function handleNameSave() {
+    const trimmed = draftName.trim()
+    setEditingName(false)
+    if (!trimmed || trimmed === category.name) return
+    await onUpdate(category.id, 'name', trimmed)
   }
 
   const isOver  = category.expected > 0 && category.actual > category.expected
@@ -412,9 +423,31 @@ function BudgetCategoryRow({
   return (
     <div className="flex flex-col group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
       <div className="flex items-center gap-2 py-2">
-        <span className="flex-1 text-[13px] truncate" style={{ color: 'var(--color-foreground)' }}>
-          {category.name}
-        </span>
+        {!fixed && editingName ? (
+          <input
+            ref={nameInputRef}
+            value={draftName}
+            onChange={e => setDraftName(e.target.value)}
+            onBlur={handleNameSave}
+            onKeyDown={e => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+              if (e.key === 'Escape') { setDraftName(category.name); setEditingName(false) }
+            }}
+            className="flex-1 text-[13px] bg-transparent border-b outline-none min-w-0"
+            style={{ color: 'var(--color-foreground)', borderColor: 'var(--color-primary)', fontSize: '16px' }}
+          />
+        ) : (
+          <span
+            className="flex-1 text-[13px] truncate"
+            style={{ color: 'var(--color-foreground)', cursor: fixed ? 'default' : 'pointer' }}
+            onClick={fixed ? undefined : () => {
+              setEditingName(true)
+              setTimeout(() => nameInputRef.current?.select(), 0)
+            }}
+          >
+            {category.name}
+          </span>
+        )}
         {fixed ? (
           <span className="w-[88px] h-7 flex items-center justify-end text-[13px] tabular-nums" style={{ color: 'var(--color-foreground-secondary)' }}>
             {fmtWhole(category.expected)}
