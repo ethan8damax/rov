@@ -8,6 +8,7 @@ export interface TransactionWithCategory {
   amount: number
   date: string
   is_pending: boolean
+  is_ignored: boolean
   category_id: string | null
   category_name: string | null
   account_name: string | null

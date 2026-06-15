@@ -147,6 +147,7 @@ export interface Transaction {
   date: string                  // YYYY-MM-DD
   category_id: string | null
   is_pending: boolean
+  is_ignored: boolean
   created_at: string
 }
 
