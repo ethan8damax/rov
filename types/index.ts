@@ -146,6 +146,7 @@ export interface Transaction {
   amount: number                // positive = expense, negative = income
   date: string                  // YYYY-MM-DD
   category_id: string | null
+  income_source_id: string | null
   is_pending: boolean
   is_ignored: boolean
   created_at: string
