@@ -82,6 +82,7 @@ export default function TransactionList({
                 amount={t.amount}
                 date={t.date}
                 isPending={t.is_pending}
+                isIgnored={t.is_ignored}
                 categoryId={t.category_id}
                 categoryName={t.category_name}
                 accountName={t.account_name}
