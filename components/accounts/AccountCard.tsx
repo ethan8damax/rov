@@ -48,7 +48,7 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
   const [confirmDisconnect, setConfirmDisconnect] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const balance  = account.balances.current ?? account.balances.available
+  const balance  = account.balances.available ?? account.balances.current
   const isCredit = account.type === 'credit'
   const dotColor = institutionColor(account.institution_name)
   const initial  = account.institution_name.charAt(0).toUpperCase()
@@ -153,11 +153,6 @@ export default function AccountCard({ account, onDisconnected }: AccountCardProp
           </p>
         ) : (
           <p className="text-[13px]" style={{ color: 'var(--color-muted)' }}>—</p>
-        )}
-        {!isCredit && account.balances.available != null && (
-          <p className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-            {fmt(account.balances.available)} available
-          </p>
         )}
       </div>
     </div>

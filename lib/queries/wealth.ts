@@ -154,7 +154,7 @@ export async function syncPlaidBalances(
   const syncedDebts:  Debt[]  = []
 
   for (const acct of accounts) {
-    const balance = acct.balances.current ?? acct.balances.available ?? 0
+    const balance = acct.balances.available ?? acct.balances.current ?? 0
     const name    = `${acct.name}${acct.mask ? ` ···${acct.mask}` : ''}`
 
     if (acct.type === 'credit') {
