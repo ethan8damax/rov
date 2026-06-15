@@ -93,7 +93,7 @@ This means a 1-cent float error no longer triggers the negative-color path or su
 | Label | Formula | Color logic |
 |---|---|---|
 | Unallocated | `totalIncome − totalBudgeted` (rounded) | negative if < 0, positive if = 0 and income > 0, warning if > 0 and income > 0, foreground if no income |
-| Left to spend | `totalIncome − totalActual` (rounded) | negative if < 0 (over budget), positive if ≥ 0 |
+| Left to spend | `totalIncome − totalActual` (rounded) | negative if < 0 and income > 0 ("over budget"), positive if ≥ 0 and income > 0, foreground if no income |
 
 ### Layout
 
@@ -117,13 +117,13 @@ The "Income · Budgeted · Spent" detail line moves below the two-card row as a 
 
 ### Location
 
-Inside the Spending tab, in the column header row that shows "Expected" and "Actual" labels. The button goes on the right side of that row:
+Inside the Spending tab, in the **"Budget categories" card title row** — the `<p>` that currently reads "Budget categories" becomes a flex row with the title on the left and the button on the right:
 
 ```
-Expected    Actual    [Sync from bank]
+Budget categories          [Sync from bank]
 ```
 
-The button is only shown when at least one flexible category has a non-zero bank sum. If no bank data is available (no Plaid connection or all categories already match), the button is hidden.
+The button is only shown when at least one flexible category has a non-zero bank sum. If no bank data is available (no Plaid connection), the button is hidden and the title row stays as-is.
 
 ### Behavior
 
