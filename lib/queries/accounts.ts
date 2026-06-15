@@ -41,9 +41,9 @@ export async function getTransactions(
     date:           t.date,
     is_pending:     t.is_pending,
     category_id:    t.category_id,
-    category_name:  (t.budget_categories as { name: string }[] | null)?.[0]?.name ?? null,
-    account_name:   (t.plaid_accounts as { name: string; mask: string }[] | null)?.[0]?.name ?? null,
-    account_mask:   (t.plaid_accounts as { name: string; mask: string }[] | null)?.[0]?.mask ?? null,
+    category_name:  (t.budget_categories as { name: string } | null)?.name ?? null,
+    account_name:   (t.plaid_accounts as { name: string; mask: string } | null)?.name ?? null,
+    account_mask:   (t.plaid_accounts as { name: string; mask: string } | null)?.mask ?? null,
   }))
 }
 
