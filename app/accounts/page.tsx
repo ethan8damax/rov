@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/lib/context/auth'
 import { getTransactions } from '@/lib/queries/accounts'
 import type { TransactionWithCategory } from '@/lib/queries/accounts'
-import { getBudgetCategories } from '@/lib/queries/finance'
+import { getBudgetCategories, getIncomeSources } from '@/lib/queries/finance'
 import { currentMonth, shiftMonth, formatMonthLabel } from '@/lib/utils'
-import type { AccountWithBalance, BudgetCategory } from '@/types'
+import type { AccountWithBalance, BudgetCategory, IncomeSource } from '@/types'
 import Card from '@/components/ui/Card'
 import Button from '@/components/ui/Button'
 import PlaidLinkButton from '@/components/accounts/PlaidLinkButton'
@@ -22,6 +22,7 @@ export default function AccountsPage() {
   const [accounts,      setAccounts]      = useState<AccountWithBalance[]>([])
   const [transactions,  setTransactions]  = useState<TransactionWithCategory[]>([])
   const [categories,    setCategories]    = useState<BudgetCategory[]>([])
+  const [incomeSources, setIncomeSources] = useState<IncomeSource[]>([])
   const [loadingAcct,   setLoadingAcct]   = useState(true)
   const [loadingTx,     setLoadingTx]     = useState(true)
   const [syncing,       setSyncing]       = useState(false)
@@ -50,12 +51,14 @@ export default function AccountsPage() {
     if (!householdId) return
     setLoadingTx(true)
     try {
-      const [txs, cats] = await Promise.all([
+      const [txs, cats, srcs] = await Promise.all([
         getTransactions(householdId, month),
         getBudgetCategories(month),
+        getIncomeSources(month),
       ])
       setTransactions(txs)
       setCategories(cats)
+      setIncomeSources(srcs)
     } catch {
       setError('Failed to load transactions')
     } finally {
@@ -155,7 +158,7 @@ export default function AccountsPage() {
   })()
 
   const uncategorized = transactions.filter(
-    t => !t.category_id && !t.is_pending && !t.is_ignored && !resolvedIds.has(t.id)
+    t => !t.category_id && !t.income_source_id && !t.is_pending && !t.is_ignored && !resolvedIds.has(t.id)
   )
   const totalPages = Math.ceil(transactions.length / PAGE_SIZE)
   const pagedTxs   = transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
@@ -237,6 +240,7 @@ export default function AccountsPage() {
           <TriageSection
             transactions={uncategorized}
             categories={categories}
+            incomeSources={incomeSources}
             householdId={householdId}
             month={month}
             onCategoryCreated={addCategory}
@@ -246,6 +250,7 @@ export default function AccountsPage() {
           <TransactionList
             transactions={pagedTxs}
             categories={categories}
+            incomeSources={incomeSources}
             householdId={householdId}
             month={month}
             loading={loadingTx}
