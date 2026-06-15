@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/lib/context/auth'
 import { getTransactions } from '@/lib/queries/accounts'
 import type { TransactionWithCategory } from '@/lib/queries/accounts'
@@ -12,19 +12,26 @@ import Button from '@/components/ui/Button'
 import PlaidLinkButton from '@/components/accounts/PlaidLinkButton'
 import AccountCard from '@/components/accounts/AccountCard'
 import TransactionList from '@/components/accounts/TransactionList'
+import TriageSection from '@/components/accounts/TriageSection'
 import { useToast } from '@/components/ui/Toast'
 
 export default function AccountsPage() {
   const { householdId } = useAuth()
   const { toast } = useToast()
-  const [month,        setMonth]        = useState(() => currentMonth())
-  const [accounts,     setAccounts]     = useState<AccountWithBalance[]>([])
-  const [transactions, setTransactions] = useState<TransactionWithCategory[]>([])
-  const [categories,   setCategories]   = useState<BudgetCategory[]>([])
-  const [loadingAcct,  setLoadingAcct]  = useState(true)
-  const [loadingTx,    setLoadingTx]    = useState(true)
-  const [syncing,      setSyncing]      = useState(false)
-  const [error,        setError]        = useState<string | null>(null)
+  const [month,         setMonth]         = useState(() => currentMonth())
+  const [accounts,      setAccounts]      = useState<AccountWithBalance[]>([])
+  const [transactions,  setTransactions]  = useState<TransactionWithCategory[]>([])
+  const [categories,    setCategories]    = useState<BudgetCategory[]>([])
+  const [loadingAcct,   setLoadingAcct]   = useState(true)
+  const [loadingTx,     setLoadingTx]     = useState(true)
+  const [syncing,       setSyncing]       = useState(false)
+  const [error,         setError]         = useState<string | null>(null)
+  const [resolvedIds,   setResolvedIds]   = useState<Set<string>>(new Set())
+  const [page,          setPage]          = useState(1)
+  const [pullIndicator, setPullIndicator] = useState(false)
+  const PAGE_SIZE  = 10
+  const pullStartY = useRef(0)
+  const isPulling  = useRef(false)
 
   const loadAccounts = useCallback(async () => {
     setLoadingAcct(true)
@@ -59,6 +66,49 @@ export default function AccountsPage() {
   useEffect(() => { loadAccounts() }, [loadAccounts])
   useEffect(() => { loadTransactions() }, [loadTransactions])
 
+  useEffect(() => {
+    setPage(1)
+    setResolvedIds(new Set())
+  }, [month])
+
+  useEffect(() => {
+    const THIRTY_MIN = 30 * 60 * 1000
+    const last = localStorage.getItem('rov-last-sync')
+    if (!last || Date.now() - Number(last) > THIRTY_MIN) {
+      handleSync()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    function onTouchStart(e: TouchEvent) {
+      pullStartY.current = e.touches[0].clientY
+      isPulling.current  = false
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (window.scrollY !== 0) return
+      const delta = e.touches[0].clientY - pullStartY.current
+      if (delta > 60) {
+        isPulling.current = true
+        setPullIndicator(true)
+      }
+    }
+    function onTouchEnd() {
+      if (isPulling.current && !syncing) handleSync()
+      isPulling.current = false
+      setPullIndicator(false)
+    }
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove',  onTouchMove,  { passive: true })
+    window.addEventListener('touchend',   onTouchEnd)
+    return () => {
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove',  onTouchMove)
+      window.removeEventListener('touchend',   onTouchEnd)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [syncing])
+
   async function handleSync() {
     setSyncing(true)
     setError(null)
@@ -66,6 +116,7 @@ export default function AccountsPage() {
       const res  = await fetch('/api/plaid/transactions')
       const data = await res.json()
       const count = data.synced ?? 0
+      localStorage.setItem('rov-last-sync', String(Date.now()))
       toast(count === 0 ? 'Already up to date' : `Synced ${count} new transaction${count !== 1 ? 's' : ''}`, 'success')
       await loadTransactions()
     } catch {
@@ -78,6 +129,14 @@ export default function AccountsPage() {
   function handleConnected() {
     loadAccounts()
     loadTransactions()
+  }
+
+  function handleResolved(id: string) {
+    setResolvedIds(prev => new Set([...prev, id]))
+  }
+
+  function addCategory(cat: BudgetCategory) {
+    setCategories(prev => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)))
   }
 
   const now = currentMonth()
@@ -95,8 +154,20 @@ export default function AccountsPage() {
     ].filter(g => g.accounts.length > 0)
   })()
 
+  const uncategorized = transactions.filter(
+    t => !t.category_id && !t.is_pending && !t.is_ignored && !resolvedIds.has(t.id)
+  )
+  const totalPages = Math.ceil(transactions.length / PAGE_SIZE)
+  const pagedTxs   = transactions.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
-    <div className="p-4 md:p-6 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 max-w-2xl mx-auto" style={{ overscrollBehaviorY: 'contain' }}>
+      {pullIndicator && (
+        <p className="text-center text-[11px] py-1 mb-2" style={{ color: 'var(--color-muted)' }}>
+          Release to sync
+        </p>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>
           Accounts
@@ -148,8 +219,7 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {/* Transactions section with month nav */}
-      <div className="flex items-center justify-between mb-3">
+      <div id="transactions" className="flex items-center justify-between mb-3">
         <h2 className="text-[14px] font-medium" style={{ color: 'var(--color-foreground)' }}>
           Transactions
         </h2>
@@ -163,14 +233,60 @@ export default function AccountsPage() {
       </div>
 
       {householdId && (
-        <TransactionList
-          transactions={transactions}
-          categories={categories}
-          householdId={householdId}
-          month={month}
-          loading={loadingTx}
-          onCategoryCreated={cat => setCategories(prev => [...prev, cat].sort((a, b) => a.name.localeCompare(b.name)))}
-        />
+        <>
+          <TriageSection
+            transactions={uncategorized}
+            categories={categories}
+            householdId={householdId}
+            month={month}
+            onCategoryCreated={addCategory}
+            onResolved={handleResolved}
+          />
+
+          <TransactionList
+            transactions={pagedTxs}
+            categories={categories}
+            householdId={householdId}
+            month={month}
+            loading={loadingTx}
+            onCategoryCreated={addCategory}
+          />
+
+          {totalPages > 1 && (
+            <div
+              className="flex items-center justify-between mt-4 pt-3"
+              style={{ borderTop: '0.5px solid var(--color-border)' }}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                intent="neutral"
+                disabled={page === 1}
+                onClick={() => {
+                  setPage(p => p - 1)
+                  document.getElementById('transactions')?.scrollIntoView({ behavior: 'smooth' })
+                }}
+              >
+                ← Previous
+              </Button>
+              <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
+                Page {page} of {totalPages}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                intent="neutral"
+                disabled={page === totalPages}
+                onClick={() => {
+                  setPage(p => p + 1)
+                  document.getElementById('transactions')?.scrollIntoView({ behavior: 'smooth' })
+                }}
+              >
+                Next →
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
