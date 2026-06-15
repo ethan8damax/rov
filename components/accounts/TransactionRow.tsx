@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import type { BudgetCategory } from '@/types'
 import { fmt } from '@/lib/utils'
-import { updateTransactionCategory, upsertMerchantRule } from '@/lib/queries/accounts'
+import { updateTransactionCategory, upsertMerchantRule, markTransactionIgnored, unignoreTransaction } from '@/lib/queries/accounts'
 import { createBudgetCategory } from '@/lib/queries/finance'
 
 interface TransactionRowProps {
@@ -13,6 +13,7 @@ interface TransactionRowProps {
   amount:            number
   date:              string
   isPending:         boolean
+  isIgnored:         boolean
   categoryId:        string | null
   categoryName:      string | null
   accountName:       string | null
@@ -21,15 +22,19 @@ interface TransactionRowProps {
   householdId:       string
   month:             string
   onCategoryCreated: (cat: BudgetCategory) => void
+  onCategorized?:    (id: string) => void
+  onIgnored?:        (id: string) => void
 }
 
 export default function TransactionRow({
-  id, merchantName, name, amount, date, isPending,
+  id, merchantName, name, amount, date, isPending, isIgnored,
   categoryId, categoryName, accountName, accountMask,
   categories, householdId, month, onCategoryCreated,
+  onCategorized, onIgnored,
 }: TransactionRowProps) {
   const [currentCatId,   setCurrentCatId]   = useState(categoryId)
   const [currentCatName, setCurrentCatName] = useState(categoryName)
+  const [currentIgnored, setCurrentIgnored] = useState(isIgnored)
   const [saving,         setSaving]         = useState(false)
   const [saved,          setSaved]          = useState(false)
   const [addingNew,      setAddingNew]      = useState(false)
@@ -43,11 +48,30 @@ export default function TransactionRow({
       setTimeout(() => newCatInputRef.current?.focus(), 0)
       return
     }
+    if (val === '__na__') {
+      setSaving(true)
+      try {
+        await markTransactionIgnored(id)
+        setCurrentCatId(null)
+        setCurrentCatName(null)
+        setCurrentIgnored(true)
+        onIgnored?.(id)
+      } catch (err) {
+        console.error('Failed to mark ignored', err)
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
     const newCatId = val || null
     const newCat   = categories.find(c => c.id === newCatId) ?? null
     setSaving(true)
     try {
       await updateTransactionCategory(id, newCatId)
+      if (currentIgnored) {
+        await unignoreTransaction(id)
+        setCurrentIgnored(false)
+      }
       if (newCat && merchantName) {
         await upsertMerchantRule(householdId, merchantName, newCat.name)
       }
@@ -55,6 +79,7 @@ export default function TransactionRow({
       setCurrentCatName(newCat?.name ?? null)
       setSaved(true)
       setTimeout(() => setSaved(false), 1200)
+      if (newCatId) onCategorized?.(id)
     } catch (err) {
       console.error('Failed to update category', err)
     } finally {
@@ -78,6 +103,7 @@ export default function TransactionRow({
       setAddingNew(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 1200)
+      onCategorized?.(id)
     } catch (err) {
       console.error('Failed to create category', err)
     } finally {
@@ -85,8 +111,8 @@ export default function TransactionRow({
     }
   }
 
-  const displayName   = merchantName ?? name
-  const isExpense     = amount > 0
+  const displayName = merchantName ?? name
+  const isExpense   = amount > 0
 
   return (
     <div
@@ -158,12 +184,13 @@ export default function TransactionRow({
           </form>
         ) : (
           <select
-            value={currentCatId ?? ''}
+            value={currentIgnored ? '__na__' : (currentCatId ?? '')}
             onChange={handleCategoryChange}
-            disabled={saving}
+            disabled={saving || isPending}
             className="mt-0.5 text-[11px] bg-transparent border-none outline-none cursor-pointer max-w-full"
-            style={{ color: currentCatName ? 'var(--color-primary)' : 'var(--color-muted)' }}
+            style={{ color: currentIgnored ? 'var(--color-muted)' : currentCatName ? 'var(--color-primary)' : 'var(--color-muted)' }}
           >
+            <option value="__na__" style={{ color: 'var(--color-muted)' }}>N/A — transfer or ignore</option>
             <option value="">Uncategorized</option>
             {categories.map(c => (
               <option key={c.id} value={c.id}>{c.name}</option>
