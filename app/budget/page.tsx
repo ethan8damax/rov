@@ -190,27 +190,37 @@ export default function BudgetPage() {
             </div>
           )}
 
-          {/* Leftover banner */}
-          <div className="rounded-xl px-5 py-4 mb-5" style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }}>
-            <p className="text-[12px] mb-1" style={{ color: 'var(--color-foreground-secondary)' }}>Unallocated this month</p>
-            <p className="text-[28px] font-medium tabular-nums" style={{ color: leftoverColor }}>
-              {leftover < 0 ? '−' : ''}{fmtWhole(Math.abs(leftover))}
-            </p>
-            {leftover === 0 && totalIncome > 0 && (
-              <p className="text-[12px] mt-1" style={{ color: 'var(--color-positive)' }}>Every dollar allocated</p>
-            )}
-            <div className="flex items-center gap-3 mt-2 text-[12px]" style={{ color: 'var(--color-muted)' }}>
-              <span>Income: {fmtWhole(totalIncome)}</span>
-              <span>·</span>
-              <span>Budgeted: {fmtWhole(totalBudgeted)}</span>
-              {totalActual > 0 && <><span>·</span><span>Spent: {fmtWhole(totalActual)}</span></>}
+          {/* Metrics row */}
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }}>
+              <p className="text-[11px] mb-1" style={{ color: 'var(--color-foreground-secondary)' }}>Unallocated</p>
+              <p className="text-[22px] font-medium tabular-nums" style={{ color: leftoverColor }}>
+                {leftover < 0 ? '−' : ''}{fmtWhole(Math.abs(leftover))}
+              </p>
+              {leftover === 0 && totalIncome > 0 && (
+                <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-positive)' }}>Every dollar allocated</p>
+              )}
             </div>
-            {totalIncome > 0 && (
-              <div className="mt-3">
-                <ProgressBar value={Math.min(100, (totalBudgeted / totalIncome) * 100)} intent="primary" />
-              </div>
-            )}
+            <div className="rounded-xl px-4 py-3" style={{ background: 'var(--color-surface)', border: '0.5px solid var(--color-border)' }}>
+              <p className="text-[11px] mb-1" style={{ color: 'var(--color-foreground-secondary)' }}>
+                {leftToSpend < 0 && totalIncome > 0 ? 'Over budget' : 'Left to spend'}
+              </p>
+              <p className="text-[22px] font-medium tabular-nums" style={{ color: leftToSpendColor }}>
+                {leftToSpend < 0 && totalIncome > 0 ? '−' : ''}{fmtWhole(Math.abs(leftToSpend))}
+              </p>
+            </div>
           </div>
+          <div className="flex items-center gap-3 mb-5 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+            <span>Income: {fmtWhole(totalIncome)}</span>
+            <span>·</span>
+            <span>Budgeted: {fmtWhole(totalBudgeted)}</span>
+            {totalActual > 0 && <><span>·</span><span>Spent: {fmtWhole(totalActual)}</span></>}
+          </div>
+          {totalIncome > 0 && (
+            <div className="mb-5">
+              <ProgressBar value={Math.min(100, (totalBudgeted / totalIncome) * 100)} intent="primary" />
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-4 mb-5" role="tablist" aria-label="Budget sections">
