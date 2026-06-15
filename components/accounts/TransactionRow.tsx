@@ -206,7 +206,7 @@ export default function TransactionRow({
           <select
             value={currentIgnored ? '__na__' : (currentIncSrcId ?? '')}
             onChange={handleIncomeSourceChange}
-            disabled={saving || isPending}
+            disabled={saving}
             className="mt-0.5 text-[11px] bg-transparent border-none outline-none cursor-pointer max-w-full"
             style={{ color: currentIgnored ? 'var(--color-muted)' : currentIncSrcName ? 'var(--color-primary)' : 'var(--color-muted)' }}
           >
@@ -249,7 +249,7 @@ export default function TransactionRow({
           <select
             value={currentIgnored ? '__na__' : (currentCatId ?? '')}
             onChange={handleCategoryChange}
-            disabled={saving || isPending}
+            disabled={saving}
             className="mt-0.5 text-[11px] bg-transparent border-none outline-none cursor-pointer max-w-full"
             style={{ color: currentIgnored ? 'var(--color-muted)' : currentCatName ? 'var(--color-primary)' : 'var(--color-muted)' }}
           >
