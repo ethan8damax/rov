@@ -122,7 +122,14 @@ export default function BudgetPage() {
     } finally { setAddingCat(false); setNewName('') }
   }
 
-  async function handleUpdateField(id: string, field: 'expected' | 'actual', raw: string) {
+  async function handleUpdateField(id: string, field: 'expected' | 'actual' | 'name', raw: string) {
+    if (field === 'name') {
+      const trimmed = raw.trim()
+      if (!trimmed) return
+      const updated = await updateBudgetCategory(id, { name: trimmed })
+      setCategories(prev => prev.map(c => c.id === id ? updated : c))
+      return
+    }
     const val = parseFloat(raw)
     if (isNaN(val) || val < 0) return
     const updated = await updateBudgetCategory(id, { [field]: val })
@@ -370,7 +377,7 @@ function BudgetCategoryRow({
 }: {
   category: BudgetCategory
   bankSum: number | null
-  onUpdate: (id: string, field: 'expected' | 'actual', raw: string) => Promise<void>
+  onUpdate: (id: string, field: 'expected' | 'actual' | 'name', raw: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   fixed?: boolean
 }) {
