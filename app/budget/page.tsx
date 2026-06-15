@@ -52,6 +52,7 @@ export default function BudgetPage() {
   const [pastCategories, setPastCategories] = useState<BudgetCategory[]>([])
   const [bankSums,       setBankSums]       = useState<{ category_id: string; total: number }[]>([])
   const [showTrends,     setShowTrends]     = useState(false)
+  const [syncing,        setSyncing]        = useState(false)
   const loadRef = useRef<() => void>(() => {})
 
   const showCarryoverToast = useCallback((copied: CarryoverResult, forMonth: string) => {
@@ -112,6 +113,8 @@ export default function BudgetPage() {
   const flexible = useMemo(() => categories.filter(c => !c.recurring_payment_id), [categories])
   const fixed    = useMemo(() => categories.filter(c => c.recurring_payment_id),  [categories])
 
+  const hasBankSums = bankSums.some(b => b.total > 0 && flexible.some(f => f.id === b.category_id))
+
   async function handleAddCategory(name: string) {
     if (!name.trim()) return
     setAddingCat(true)
@@ -139,6 +142,22 @@ export default function BudgetPage() {
   async function handleDelete(id: string) {
     setCategories(prev => prev.filter(c => c.id !== id))
     await deleteBudgetCategory(id)
+  }
+
+  async function handleSyncActuals() {
+    setSyncing(true)
+    try {
+      const toSync = flexible.filter(c => (bankSums.find(b => b.category_id === c.id)?.total ?? 0) > 0)
+      const updated = await Promise.all(
+        toSync.map(c => updateBudgetCategory(c.id, { actual: bankSums.find(b => b.category_id === c.id)!.total }))
+      )
+      setCategories(prev => prev.map(c => updated.find(u => u.id === c.id) ?? c))
+      toast(`Updated ${updated.length} ${updated.length === 1 ? 'category' : 'categories'} from bank`, 'success')
+    } catch {
+      toast('Failed to sync — please try again', 'error')
+    } finally {
+      setSyncing(false)
+    }
   }
 
   const overBudget    = categories.filter(c => c.expected > 0 && c.actual > c.expected)
@@ -259,9 +278,22 @@ export default function BudgetPage() {
           {tab === 'spending' && (
             <>
               <Card>
-                <p className="text-[13px] font-medium mb-3" style={{ color: 'var(--color-foreground)' }}>
-                  Budget categories
-                </p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[13px] font-medium" style={{ color: 'var(--color-foreground)' }}>
+                    Budget categories
+                  </p>
+                  {hasBankSums && (
+                    <button
+                      type="button"
+                      onClick={handleSyncActuals}
+                      disabled={syncing}
+                      className="text-[11px] disabled:opacity-40"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      {syncing ? 'Syncing…' : 'Sync from bank'}
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2 pb-2 mb-1" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
                   <span className="flex-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>Category</span>
@@ -279,7 +311,6 @@ export default function BudgetPage() {
                     {flexible.map(c => (
                       <BudgetCategoryRow
                         key={c.id} category={c}
-                        bankSum={bankSums.find(b => b.category_id === c.id)?.total ?? null}
                         onUpdate={handleUpdateField} onDelete={handleDelete}
                       />
                     ))}
@@ -292,7 +323,6 @@ export default function BudgetPage() {
                         {fixed.map(c => (
                           <BudgetCategoryRow
                             key={c.id} category={c} fixed
-                            bankSum={bankSums.find(b => b.category_id === c.id)?.total ?? null}
                             onUpdate={handleUpdateField} onDelete={handleDelete}
                           />
                         ))}
@@ -373,10 +403,9 @@ export default function BudgetPage() {
 }
 
 function BudgetCategoryRow({
-  category, bankSum, onUpdate, onDelete, fixed = false,
+  category, onUpdate, onDelete, fixed = false,
 }: {
   category: BudgetCategory
-  bankSum: number | null
   onUpdate: (id: string, field: 'expected' | 'actual' | 'name', raw: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   fixed?: boolean
@@ -497,21 +526,6 @@ function BudgetCategoryRow({
           >×</button>
         )}
       </div>
-      {bankSum !== null && bankSum > 0 && (
-        <div className="flex items-center gap-2 pb-1">
-          <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-            {fmtWhole(bankSum)} from bank
-          </span>
-          <button
-            type="button"
-            className="text-[11px]"
-            style={{ color: 'var(--color-primary)' }}
-            onClick={() => handleSave('actual', String(bankSum))}
-          >
-            set as actual
-          </button>
-        </div>
-      )}
       {isOver && (
         <p className="text-[11px] pb-1 text-right" style={{ color: 'var(--color-negative)' }}>
           +{fmtWhole(category.actual - category.expected)} over
