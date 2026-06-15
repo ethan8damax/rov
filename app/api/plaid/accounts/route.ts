@@ -33,7 +33,7 @@ export async function GET() {
   const allAccounts: AccountWithBalance[] = []
   for (const item of items) {
     try {
-      const res = await plaidClient.accountsGet({ access_token: item.access_token })
+      const res = await plaidClient.accountsBalanceGet({ access_token: item.access_token })
       for (const acct of res.data.accounts) {
         allAccounts.push({
           account_id:       acct.account_id,
