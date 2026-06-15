@@ -27,7 +27,7 @@ export async function getTransactions(
 
   const { data, error } = await supabase
     .from('transactions')
-    .select('id, transaction_id, merchant_name, name, amount, date, is_pending, category_id, budget_categories(name), plaid_accounts(name, mask)')
+    .select('id, transaction_id, merchant_name, name, amount, date, is_pending, is_ignored, category_id, budget_categories(name), plaid_accounts(name, mask)')
     .eq('household_id', householdId)
     .gte('date', `${month}-01`)
     .lt('date',  `${nextMonth}-01`)
@@ -41,10 +41,11 @@ export async function getTransactions(
     amount:         t.amount,
     date:           t.date,
     is_pending:     t.is_pending,
+    is_ignored:     t.is_ignored,
     category_id:    t.category_id,
-    category_name:  (t.budget_categories as { name: string } | null)?.name ?? null,
-    account_name:   (t.plaid_accounts as { name: string; mask: string } | null)?.name ?? null,
-    account_mask:   (t.plaid_accounts as { name: string; mask: string } | null)?.mask ?? null,
+    category_name:  (t.budget_categories as unknown as { name: string } | null)?.name ?? null,
+    account_name:   (t.plaid_accounts as unknown as { name: string; mask: string } | null)?.name ?? null,
+    account_mask:   (t.plaid_accounts as unknown as { name: string; mask: string } | null)?.mask ?? null,
   }))
 }
 
@@ -64,6 +65,7 @@ export async function getUncategorizedCount(
     .eq('household_id', householdId)
     .is('category_id', null)
     .eq('is_pending', false)
+    .eq('is_ignored', false)
     .gte('date', `${month}-01`)
     .lt('date',  `${nextMonth}-01`)
   if (error) throw error
@@ -79,6 +81,24 @@ export async function updateTransactionCategory(
     .from('transactions')
     .update({ category_id: categoryId })
     .eq('id', transactionId)
+  if (error) throw error
+}
+
+export async function markTransactionIgnored(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('transactions')
+    .update({ is_ignored: true, category_id: null })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function unignoreTransaction(id: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('transactions')
+    .update({ is_ignored: false })
+    .eq('id', id)
   if (error) throw error
 }
 
