@@ -64,6 +64,7 @@ export default function IncomeTab({ month, incomes, setIncomes, owners, bankSums
   }
 
   const total = incomes.reduce((s, i) => s + i.expected, 0)
+  const totalActual = incomes.reduce((s, i) => s + i.actual, 0)
 
   return (
     <Card>
@@ -99,9 +100,10 @@ export default function IncomeTab({ month, incomes, setIncomes, owners, bankSums
             />
           ))}
           <div className="flex items-center gap-2 pt-2 mt-1" style={{ borderTop: '0.5px solid var(--color-border)' }}>
-            <span className="flex-1 text-[12px] font-medium" style={{ color: 'var(--color-foreground)' }}>Total expected</span>
+            <span className="flex-1 text-[12px] font-medium" style={{ color: 'var(--color-foreground)' }}>Total</span>
             <span className="w-[88px] text-[12px] font-medium tabular-nums text-right" style={{ color: 'var(--color-foreground)' }}>{fmtWhole(total)}</span>
-            <span className="w-[88px]" /><span className="w-5" />
+            <span className="w-[88px] text-[12px] font-medium tabular-nums text-right" style={{ color: 'var(--color-foreground)' }}>{fmtWhole(totalActual)}</span>
+            <span className="w-5" />
           </div>
         </>
       )}
