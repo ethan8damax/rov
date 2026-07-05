@@ -77,6 +77,7 @@ export default function Sidebar() {
               onClick={toggle}
               className="text-[12px] px-1.5 py-0.5 rounded"
               style={{ color: 'var(--color-muted)', background: 'var(--color-border)' }}
+              suppressHydrationWarning
             >
               {theme === 'dark' ? '☀' : '☾'}
             </button>

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   getBudgetCategories, createBudgetCategory, updateBudgetCategory, deleteBudgetCategory,
   getIncomeSources, getRecurringPayments, getBudgetCategoriesPastMonths,
-  ensureMonthSetup, undoCarryover, type CarryoverResult,
+  ensureMonthSetup, undoCarryover, carryoverBudget, type CarryoverResult,
 } from '@/lib/queries/finance'
 import { getHouseholdMemberNames } from '@/lib/queries/households'
 import { getTransactionSumsByCategory, getTransactionSumsByIncomeSource } from '@/lib/queries/accounts'
@@ -54,6 +54,7 @@ export default function BudgetPage() {
   const [incomeBankSums, setIncomeBankSums] = useState<{ income_source_id: string; total: number }[]>([])
   const [showTrends,     setShowTrends]     = useState(false)
   const [syncing,        setSyncing]        = useState(false)
+  const [copying,        setCopying]        = useState(false)
   const loadRef = useRef<() => void>(() => {})
 
   const showCarryoverToast = useCallback((copied: CarryoverResult, forMonth: string) => {
@@ -147,6 +148,23 @@ export default function BudgetPage() {
     await deleteBudgetCategory(id)
   }
 
+  async function handleManualCarryover() {
+    setCopying(true)
+    try {
+      const result = await carryoverBudget(shiftMonth(month, -1), month)
+      if (result.categoryIds.length === 0 && result.incomeIds.length === 0) {
+        toast('Nothing new to copy from last month', 'info')
+      } else {
+        showCarryoverToast(result, month)
+        await load()
+      }
+    } catch {
+      toast('Failed to copy — please try again', 'error')
+    } finally {
+      setCopying(false)
+    }
+  }
+
   async function handleSyncActuals() {
     setSyncing(true)
     try {
@@ -200,6 +218,17 @@ export default function BudgetPage() {
               {formatMonthLabel(month)}
             </span>
             <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(shiftMonth(month, 1))}>→</Button>
+            {month >= currentMonth() && (
+              <button
+                type="button"
+                onClick={handleManualCarryover}
+                disabled={copying}
+                className="ml-auto text-[11px] disabled:opacity-40"
+                style={{ color: 'var(--color-primary)' }}
+              >
+                {copying ? 'Copying…' : 'Copy last month'}
+              </button>
+            )}
           </div>
 
           {/* Over-budget warning */}
