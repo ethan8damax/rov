@@ -39,6 +39,11 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 99px; }
 
+@media print {
+  @page { margin: 0.4in; }
+  body { background: #ffffff; }
+}
+
 /* Prevent browser autofill from overriding dark background */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

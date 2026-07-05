@@ -8,8 +8,9 @@ import {
 } from '@/lib/queries/finance'
 import { getHouseholdMemberNames } from '@/lib/queries/households'
 import { getTransactionSumsByCategory, getTransactionSumsByIncomeSource } from '@/lib/queries/accounts'
+import { getSavingsPods } from '@/lib/queries/wealth'
 import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths, sanitizeError } from '@/lib/utils'
-import type { BudgetCategory, IncomeSource, RecurringPayment } from '@/types'
+import type { BudgetCategory, IncomeSource, RecurringPayment, SavingsPod } from '@/types'
 import { useAuth } from '@/lib/context/auth'
 import { useToast } from '@/components/ui/Toast'
 import Card from '@/components/ui/Card'
@@ -18,6 +19,7 @@ import ProgressBar from '@/components/ui/ProgressBar'
 import IncomeTab from '@/components/budget/IncomeTab'
 import RecurringTab from '@/components/budget/RecurringTab'
 import SpendingTrendChart, { buildTrendPoints } from '@/components/budget/SpendingTrendChart'
+import MonthSummaryPrint from '@/components/budget/MonthSummaryPrint'
 
 function Skeleton({ className = '' }: { className?: string }) {
   return <div className={`animate-pulse rounded-lg ${className}`} style={{ background: 'var(--color-surface)' }} />
@@ -53,8 +55,10 @@ export default function BudgetPage() {
   const [bankSums,       setBankSums]       = useState<{ category_id: string; total: number }[]>([])
   const [incomeBankSums, setIncomeBankSums] = useState<{ income_source_id: string; total: number }[]>([])
   const [showTrends,     setShowTrends]     = useState(false)
+  const [showOverBudget, setShowOverBudget] = useState(true)
   const [syncing,        setSyncing]        = useState(false)
   const [copying,        setCopying]        = useState(false)
+  const [pods,           setPods]           = useState<SavingsPod[]>([])
   const loadRef = useRef<() => void>(() => {})
 
   const showCarryoverToast = useCallback((copied: CarryoverResult, forMonth: string) => {
@@ -81,7 +85,7 @@ export default function BudgetPage() {
       const skip = localStorage.getItem(`rov-skip-carryover-${month}`) === '1'
       const copied = await ensureMonthSetup(month, skip)
       const trendMonths = getPastMonths(month, 6)
-      const [cats, incs, recs, names, pastCats, sums, incSums] = await Promise.all([
+      const [cats, incs, recs, names, pastCats, sums, incSums, podList] = await Promise.all([
         getBudgetCategories(month),
         getIncomeSources(month),
         getRecurringPayments(),
@@ -89,6 +93,7 @@ export default function BudgetPage() {
         getBudgetCategoriesPastMonths(trendMonths),
         householdId ? getTransactionSumsByCategory(householdId, month) : Promise.resolve([]),
         householdId ? getTransactionSumsByIncomeSource(householdId, month) : Promise.resolve([]),
+        getSavingsPods(),
       ])
       setCategories(cats)
       setIncomes(incs)
@@ -97,6 +102,7 @@ export default function BudgetPage() {
       setPastCategories(pastCats)
       setBankSums(sums)
       setIncomeBankSums(incSums)
+      setPods(podList)
       if (copied) showCarryoverToast(copied, month)
     } catch (err) {
       setError(sanitizeError(err))
@@ -198,19 +204,40 @@ export default function BudgetPage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-[20px] font-medium mb-5" style={{ color: 'var(--color-foreground)' }}>
-        Budget
-      </h1>
+      <div className="flex items-center justify-between mb-5 print:hidden">
+        <h1 className="text-[20px] font-medium" style={{ color: 'var(--color-foreground)' }}>
+          Budget
+        </h1>
+        {!loading && !error && (
+          <Button size="sm" variant="ghost" intent="neutral" onClick={() => window.print()}>
+            Download PDF
+          </Button>
+        )}
+      </div>
 
       {error ? (
-        <p className="text-[13px]" style={{ color: 'var(--color-negative)' }}>{error}</p>
+        <p className="text-[13px] print:hidden" style={{ color: 'var(--color-negative)' }}>{error}</p>
       ) : loading ? (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 print:hidden">
           <Skeleton className="h-24 w-full" />
           <Skeleton className="h-48 w-full" />
         </div>
       ) : (
         <>
+          <MonthSummaryPrint
+            month={month}
+            ownerNames={owners}
+            totalIncome={totalIncome}
+            totalBudgeted={totalBudgeted}
+            totalActual={totalActual}
+            leftover={leftover}
+            leftToSpend={leftToSpend}
+            categories={categories}
+            pastCategories={pastCategories}
+            pastMonths={trendMonths}
+            pods={pods}
+          />
+          <div className="print:hidden">
           {/* Month nav */}
           <div className="flex items-center gap-2 mb-5">
             <Button size="sm" variant="ghost" intent="neutral" onClick={() => setMonth(shiftMonth(month, -1))}>←</Button>
@@ -234,17 +261,27 @@ export default function BudgetPage() {
           {/* Over-budget warning */}
           {overBudget.length > 0 && (
             <div className="rounded-xl px-5 py-4 mb-5" style={{ background: 'var(--color-negative-subtle)' }}>
-              <p className="text-[13px] font-medium mb-2" style={{ color: 'var(--color-negative)' }}>
+              <button
+                type="button"
+                onClick={() => setShowOverBudget(v => !v)}
+                className="flex items-center gap-2 text-[13px] font-medium w-full text-left"
+                style={{ color: 'var(--color-negative)' }}
+              >
+                <span>{showOverBudget ? '▾' : '▸'}</span>
                 Over budget on {overBudget.length} {overBudget.length === 1 ? 'category' : 'categories'}
-              </p>
-              {overBudget.map(c => (
-                <div key={c.id} className="flex items-center py-1">
-                  <span className="flex-1 text-[12px]" style={{ color: 'var(--color-negative)' }}>{c.name}</span>
-                  <span className="text-[12px] font-medium tabular-nums" style={{ color: 'var(--color-negative)' }}>
-                    +{fmtWhole(c.actual - c.expected)} over
-                  </span>
+              </button>
+              {showOverBudget && (
+                <div className="mt-2">
+                  {overBudget.map(c => (
+                    <div key={c.id} className="flex items-center py-1">
+                      <span className="flex-1 text-[12px]" style={{ color: 'var(--color-negative)' }}>{c.name}</span>
+                      <span className="text-[12px] font-medium tabular-nums" style={{ color: 'var(--color-negative)' }}>
+                        +{fmtWhole(c.actual - c.expected)} over
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
 
@@ -428,6 +465,7 @@ export default function BudgetPage() {
               )}
             </>
           )}
+          </div>
         </>
       )}
     </div>

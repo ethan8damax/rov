@@ -31,7 +31,7 @@ export default function MobileNav() {
   const pathname = usePathname()
   return (
     <nav
-      className="md:hidden fixed bottom-0 left-0 right-0 flex border-t z-50"
+      className="md:hidden fixed bottom-0 left-0 right-0 flex border-t z-50 print:hidden"
       style={{
         background: 'var(--color-surface)',
         borderColor: 'var(--color-border)',
