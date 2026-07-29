@@ -30,9 +30,21 @@ export default function SignupPage() {
     setError(null)
     setLoading(true)
     const supabase = createClient()
-    const { error: signUpErr } = await supabase.auth.signUp({ email, password })
+    const { data, error: signUpErr } = await supabase.auth.signUp({ email, password })
     if (signUpErr) {
       setError(signUpErr.message)
+      setLoading(false)
+      return
+    }
+    if (!data.session) {
+      // Email confirmation required — no session yet, so household creation
+      // (which needs an authenticated user) must wait until after confirmation.
+      // AuthProvider picks this up and finishes it on first authenticated load.
+      localStorage.setItem('rov-pending-household', JSON.stringify({
+        householdName: householdName || `${displayName}'s Household`,
+        displayName,
+      }))
+      setError('Check your inbox and click the confirmation link, then sign in to finish setting up your household.')
       setLoading(false)
       return
     }

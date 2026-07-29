@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { createHousehold } from '@/lib/queries/households'
 import type { User } from '@supabase/supabase-js'
 
 interface AuthContextType {
@@ -43,11 +44,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient()
     ;(async () => {
       try {
-        const { data } = await supabase
+        let { data } = await supabase
           .from('household_members')
           .select('household_id, display_name')
           .eq('user_id', user.id)
           .maybeSingle()
+
+        // Signup that required email confirmation couldn't create the household
+        // at signup time (no session yet) — finish it now that the user has one.
+        const pending = !data && localStorage.getItem('rov-pending-household')
+        if (pending) {
+          const { householdName, displayName: pendingName } = JSON.parse(pending)
+          await createHousehold(householdName, pendingName)
+          localStorage.removeItem('rov-pending-household')
+          ;({ data } = await supabase
+            .from('household_members')
+            .select('household_id, display_name')
+            .eq('user_id', user.id)
+            .maybeSingle())
+        }
+
         setHouseholdId(data?.household_id ?? null)
         setDisplayName(data?.display_name ?? null)
       } finally {
