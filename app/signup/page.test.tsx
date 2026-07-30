@@ -51,4 +51,7 @@ test('signup that requires email confirmation defers household creation instead 
     householdName: "Sam's Household",
     displayName: 'Sam',
   })
+  // Form is replaced by the confirmation panel, not left showing alongside it
+  expect(screen.queryByPlaceholderText('Household name (e.g. The Levines)')).not.toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /go to sign in/i })).toBeInTheDocument()
 })
