@@ -1,0 +1,28 @@
+{
+  "projectId": "f3022b7a-3772-4f5e-952b-58f7e19a78ed",
+  "shape": "package",
+  "pkg": "rov",
+  "globalName": "Rov",
+  "tsconfig": "./tsconfig.json",
+  "srcDir": "components",
+  "readmeHeader": ".design-sync/conventions.md",
+  "cssEntry": "./.ds-sync/compiled-tailwind.css",
+  "extraFonts": ["./.ds-sync/fonts/7ab938503e4547a1-s.woff2", "./.ds-sync/fonts/ccc01da6a2b3d788-s.woff2"],
+  "componentSrcMap": {
+    "Sidebar": null,
+    "MobileNav": null,
+    "AppShell": null
+  },
+  "libOverrides": {
+    "source-kit.mjs": "(1) all components are default exports; synth-entry's `export * from` never forwards a default binding, so fork adds an aliased `export { default as Name }` per file. (2) componentSrcMap:null now also drops the file from the synth entry (not just the discovered name) so next/link's top-level process.env reads (Sidebar/MobileNav/AppShell) can't crash the whole shared IIFE"
+  },
+  "overrides": {
+    "ToastProvider": { "cardMode": "single", "viewport": "400x300" }
+  },
+  "provider": {
+    "component": "ThemeProvider",
+    "inner": {
+      "component": "ToastProvider"
+    }
+  }
+}

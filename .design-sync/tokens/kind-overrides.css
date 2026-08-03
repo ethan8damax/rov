@@ -1,0 +1,18 @@
+/* Durable @kind annotations for the claude.ai/design token classifier.
+   These 6 custom properties are Tailwind v4's own internal reset/utility
+   plumbing, synthesized at build time — they don't exist as literal
+   declarations anywhere in Rov's own source (app/tokens.css, app/globals.css).
+   They're re-declared here (values copied verbatim from Tailwind's own
+   compiled reset block) purely so the classifier sees the @kind comment.
+   This file is committed and durable; .ds-sync/compiled-tailwind.css is
+   gitignored and regenerated from `npm run build` on every sync, so any
+   comment added directly to that copy would be wiped on the next re-sync. */
+
+:root {
+  --tw-border-style: solid; /* @kind other */
+  --animate-pulse: pulse 2s cubic-bezier(.4,0,.6,1) infinite; /* @kind other */
+  --default-transition-duration: .15s; /* @kind other */
+  --default-transition-timing-function: cubic-bezier(.4,0,.2,1); /* @kind other */
+  --tw-blur: initial; /* @kind other */
+  --tw-outline-style: none; /* @kind other */
+}
