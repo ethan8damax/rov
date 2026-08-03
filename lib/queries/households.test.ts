@@ -4,6 +4,8 @@ import { createHousehold } from './households'
 // table inserts: a direct insert().select() on households fails RLS, because
 // the SELECT-on-RETURNING check requires get_household_id(), which depends on
 // the household_members row this same call is trying to create (chicken/egg).
+// The RPC derives the user from auth.uid() server-side rather than trusting
+// a client-supplied id, so no user id is passed here.
 const getUser = jest.fn()
 const rpc = jest.fn()
 jest.mock('@/lib/supabase/client', () => ({
@@ -23,7 +25,6 @@ test('createHousehold calls the create_household RPC with the authenticated user
 
   expect(rpc).toHaveBeenCalledWith('create_household', {
     p_name: 'The Levines',
-    p_user_id: 'u1',
     p_display_name: 'Ethan',
   })
 })

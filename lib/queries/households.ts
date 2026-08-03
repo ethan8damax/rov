@@ -36,7 +36,6 @@ export async function createHousehold(name: string, displayName: string): Promis
   // yet. An atomic RPC (same pattern as redeem_household_invite) sidesteps that.
   const { error } = await supabase.rpc('create_household', {
     p_name: name,
-    p_user_id: user.id,
     p_display_name: displayName,
   })
   if (error) throw error

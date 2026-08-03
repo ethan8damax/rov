@@ -40,6 +40,9 @@ function JoinForm() {
         const { data, error: signUpErr } = await supabase.auth.signUp({ email, password })
         if (signUpErr) throw signUpErr
         if (!data.session) {
+          // No session until the confirmation link is clicked — the name typed here
+          // would otherwise be lost, since the "Sign in" tab doesn't ask for it again.
+          if (displayName) localStorage.setItem('rov-pending-join-name', displayName)
           setError('Check your inbox and click the confirmation link, then come back here and sign in.')
           setLoading(false)
           return
@@ -48,7 +51,8 @@ function JoinForm() {
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password })
         if (signInErr) throw signInErr
       }
-      const result = await redeemInviteAction(token, displayName || email.split('@')[0])
+      const pendingName = localStorage.getItem('rov-pending-join-name')
+      const result = await redeemInviteAction(token, displayName || pendingName || email.split('@')[0])
       if (result.error) {
         if (result.error === 'not_authenticated') {
           setError('Sign in first, then come back to this link to join.')
@@ -58,6 +62,7 @@ function JoinForm() {
         setLoading(false)
         return
       }
+      localStorage.removeItem('rov-pending-join-name')
       router.push('/')
       router.refresh()
     } catch (err) {

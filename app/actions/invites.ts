@@ -12,7 +12,6 @@ export async function redeemInviteAction(
 
   const { error } = await supabase.rpc('redeem_household_invite', {
     p_token: token,
-    p_user_id: user.id,
     p_display_name: displayName,
   })
   if (error) return { error: error.message }
