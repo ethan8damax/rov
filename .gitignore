@@ -55,3 +55,10 @@ rov-debug.mjs
 
 # brainstorming session artifacts
 .superpowers/
+
+# design-sync: staged converter scripts + regenerated build output/state
+/.ds-sync/
+/ds-bundle/
+/.design-sync/.cache/
+/.design-sync/learnings/
+/.design-sync/node_modules
