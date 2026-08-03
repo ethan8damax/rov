@@ -30,17 +30,16 @@ export async function createHousehold(name: string, displayName: string): Promis
   const { data: { user }, error: authErr } = await supabase.auth.getUser()
   if (authErr || !user) throw new Error('Not authenticated')
 
-  const { data: household, error: hErr } = await supabase
-    .from('households')
-    .insert({ name })
-    .select()
-    .single()
-  if (hErr) throw hErr
-
-  const { error: mErr } = await supabase
-    .from('household_members')
-    .insert({ household_id: household.id, user_id: user.id, display_name: displayName })
-  if (mErr) throw mErr
+  // Two separate inserts (households, then household_members) can't be done directly
+  // from the client: RLS's SELECT-on-RETURNING check for the households insert requires
+  // get_household_id(), which depends on the household_members row that doesn't exist
+  // yet. An atomic RPC (same pattern as redeem_household_invite) sidesteps that.
+  const { error } = await supabase.rpc('create_household', {
+    p_name: name,
+    p_user_id: user.id,
+    p_display_name: displayName,
+  })
+  if (error) throw error
 }
 
 export async function createInvite(householdId: string): Promise<string> {
