@@ -476,26 +476,17 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
         {assets.length === 0 ? (
           <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No assets yet — add accounts, investments, or property.</p>
         ) : assets.map(a => (
-          <div key={a.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
-            <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{a.name}</span>
-            <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{a.type.replace('_', ' ')}</span>
-            <input
-              type="number" min="0" step="0.01"
-              defaultValue={a.balance}
-              onBlur={async e => {
-                const val = parseFloat(e.target.value)
-                if (!isNaN(val)) {
-                  const updated = await updateAsset(a.id, { balance: val } as AssetUpdate)
-                  setAssets(prev => prev.map(x => x.id === a.id ? updated : x))
-                  setSavedId(a.id)
-                  setTimeout(() => setSavedId(prev => prev === a.id ? null : prev), 1200)
-                }
-              }}
-              className={numCls}
-              style={{ ...inputStyle, border: `0.5px solid ${savedId === a.id ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
-            />
-            <InlineDelete onDelete={() => { setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }} label={a.name} />
-          </div>
+          <AssetRow
+            key={a.id} asset={a}
+            saved={savedId === a.id}
+            onSave={async val => {
+              const updated = await updateAsset(a.id, { balance: val } as AssetUpdate)
+              setAssets(prev => prev.map(x => x.id === a.id ? updated : x))
+              setSavedId(a.id)
+              setTimeout(() => setSavedId(prev => prev === a.id ? null : prev), 1200)
+            }}
+            onDelete={() => { setAssets(prev => prev.filter(x => x.id !== a.id)); deleteAsset(a.id) }}
+          />
         ))}
         {showAdd ? (
           <form onSubmit={handleAdd} className="flex gap-2 flex-wrap mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
@@ -512,6 +503,35 @@ function AssetsSection({ assets, setAssets }: { assets: Asset[]; setAssets: Reac
         )}
       </Card>
     </section>
+  )
+}
+
+function AssetRow({ asset, saved, onSave, onDelete }: {
+  asset: Asset
+  saved: boolean
+  onSave: (val: number) => Promise<void>
+  onDelete: () => void
+}) {
+  const [bal, setBal] = useState(String(asset.balance))
+  useEffect(() => { setBal(String(asset.balance)) }, [asset.balance])
+
+  return (
+    <div className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
+      <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{asset.name}</span>
+      <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{asset.type.replace('_', ' ')}</span>
+      <input
+        type="number" min="0" step="0.01"
+        value={bal}
+        onChange={e => setBal(e.target.value)}
+        onBlur={async e => {
+          const val = parseFloat(e.target.value)
+          if (!isNaN(val)) await onSave(val)
+        }}
+        className={numCls}
+        style={{ ...inputStyle, border: `0.5px solid ${saved ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
+      />
+      <InlineDelete onDelete={onDelete} label={asset.name} />
+    </div>
   )
 }
 
@@ -544,26 +564,17 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
         {debts.length === 0 ? (
           <p className="text-[13px] py-2" style={{ color: 'var(--color-muted)' }}>No debts recorded — add loans or credit card balances.</p>
         ) : debts.map(d => (
-          <div key={d.id} className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
-            <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{d.name}</span>
-            <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{d.owner}</span>
-            <input
-              type="number" min="0" step="0.01"
-              defaultValue={d.amount_owed}
-              onBlur={async e => {
-                const val = parseFloat(e.target.value)
-                if (!isNaN(val)) {
-                  const updated = await updateDebt(d.id, { amount_owed: val } as DebtUpdate)
-                  setDebts(prev => prev.map(x => x.id === d.id ? updated : x))
-                  setSavedId(d.id)
-                  setTimeout(() => setSavedId(prev => prev === d.id ? null : prev), 1200)
-                }
-              }}
-              className={numCls}
-              style={{ ...inputStyle, color: 'var(--color-negative)', border: `0.5px solid ${savedId === d.id ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
-            />
-            <InlineDelete onDelete={() => { setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }} label={d.name} />
-          </div>
+          <DebtRow
+            key={d.id} debt={d}
+            saved={savedId === d.id}
+            onSave={async val => {
+              const updated = await updateDebt(d.id, { amount_owed: val } as DebtUpdate)
+              setDebts(prev => prev.map(x => x.id === d.id ? updated : x))
+              setSavedId(d.id)
+              setTimeout(() => setSavedId(prev => prev === d.id ? null : prev), 1200)
+            }}
+            onDelete={() => { setDebts(prev => prev.filter(x => x.id !== d.id)); deleteDebt(d.id) }}
+          />
         ))}
         {showAdd ? (
           <form onSubmit={handleAdd} className="flex gap-2 flex-wrap mt-4 pt-3" style={{ borderTop: '0.5px solid var(--color-border)' }}>
@@ -578,5 +589,34 @@ function DebtsSection({ debts, setDebts }: { debts: Debt[]; setDebts: React.Disp
         )}
       </Card>
     </section>
+  )
+}
+
+function DebtRow({ debt, saved, onSave, onDelete }: {
+  debt: Debt
+  saved: boolean
+  onSave: (val: number) => Promise<void>
+  onDelete: () => void
+}) {
+  const [amt, setAmt] = useState(String(debt.amount_owed))
+  useEffect(() => { setAmt(String(debt.amount_owed)) }, [debt.amount_owed])
+
+  return (
+    <div className="flex items-center gap-2 py-2 group" style={{ borderBottom: '0.5px solid var(--color-border)' }}>
+      <span className="flex-1 text-[13px]" style={{ color: 'var(--color-foreground)' }}>{debt.name}</span>
+      <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>{debt.owner}</span>
+      <input
+        type="number" min="0" step="0.01"
+        value={amt}
+        onChange={e => setAmt(e.target.value)}
+        onBlur={async e => {
+          const val = parseFloat(e.target.value)
+          if (!isNaN(val)) await onSave(val)
+        }}
+        className={numCls}
+        style={{ ...inputStyle, color: 'var(--color-negative)', border: `0.5px solid ${saved ? 'var(--color-positive)' : 'var(--color-border)'}`, transition: 'border-color 0.4s ease' }}
+      />
+      <InlineDelete onDelete={onDelete} label={debt.name} />
+    </div>
   )
 }
