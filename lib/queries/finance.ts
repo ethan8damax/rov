@@ -177,18 +177,21 @@ export async function carryoverBudget(fromMonth: string, toMonth: string): Promi
 
   const [{ data: existingCats }, { data: existingInc }] = await Promise.all([
     supabase.from('budget_categories').select('name').eq('household_id', householdId).eq('month', toMonth),
-    supabase.from('income_sources').select('name').eq('household_id', householdId).eq('month', toMonth),
+    supabase.from('income_sources').select('owner, name').eq('household_id', householdId).eq('month', toMonth),
   ])
 
   const existingCatNames = new Set((existingCats ?? []).map(c => c.name.toLowerCase()))
-  const existingIncNames = new Set((existingInc ?? []).map(i => i.name.toLowerCase()))
+  // Keyed by owner+name, not name alone — two owners can legitimately share
+  // an income source name (e.g. both call it "Paycheck") and each needs to
+  // carry over independently.
+  const existingIncKeys = new Set((existingInc ?? []).map(i => `${i.owner.toLowerCase()}|${i.name.toLowerCase()}`))
 
   const newCats = (cats ?? [])
     .filter(c => !existingCatNames.has(c.name.toLowerCase()))
     .map(c => ({ household_id: householdId, name: c.name, month: toMonth, expected: c.expected, actual: 0 }))
 
   const newIncs = (incomes ?? [])
-    .filter(i => !existingIncNames.has(i.name.toLowerCase()))
+    .filter(i => !existingIncKeys.has(`${i.owner.toLowerCase()}|${i.name.toLowerCase()}`))
     .map(i => ({ household_id: householdId, owner: i.owner, name: i.name, month: toMonth, expected: i.expected, actual: 0 }))
 
   let categoryIds: string[] = []
