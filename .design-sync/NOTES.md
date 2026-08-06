@@ -77,14 +77,42 @@ exports. This sync runs entirely in the converter's synth-entry mode against
   `.next/static/css/*.css` → `.ds-sync/compiled-tailwind.css` before every
   re-sync (do this before running the converter).
 
-- **Brand fonts (DM Sans, DM Serif Display)** are self-hosted by
-  `next/font/google` with content-hashed filenames under
-  `.next/static/media/`. Copied into `.ds-sync/fonts/` under their ORIGINAL
-  hashed basenames (font matching is by basename, not family name) and
-  wired via `cfg.extraFonts`. **Re-sync risk:** if the font config in
-  `app/layout.tsx` changes, the hash changes — re-grab the new files from
-  `.next/static/media/` after `npm run build` and update the two
-  `extraFonts` paths (and the copied filenames) to match.
+- **Brand fonts (DM Sans, DM Serif Display) — 4 files, not 2.** Next.js's
+  `next/font/google` splits EACH family/weight into two `@font-face` rules
+  by `unicode-range`: an extended-Latin subset (accented/special chars) and
+  a `.p.woff2` basic-Latin subset (plain a-z, the one that actually covers
+  ordinary English text). The first sync only grabbed the extended-Latin
+  files and missed the `.p.` ones — `package-validate.mjs` silently dropped
+  those 3 `@font-face` rules (`[FONT_DANGLING]`/`@ds-font-face-dropped`
+  comments in `_ds_bundle.css`), so every preview was silently rendering
+  plain text in the Arial/Times fallback, not DM Sans/DM Serif Display.
+  Fixed 2026-08-06 by also grabbing the `.p.woff2` files. All 4 are copied
+  into `.ds-sync/fonts/` under their ORIGINAL hashed basenames (font
+  matching is by basename, not family name) and wired via `cfg.extraFonts`.
+  **Re-sync risk:** if the font config in `app/layout.tsx` changes, all 4
+  hashes change — re-grab ALL FOUR files from `.next/static/media/` after
+  `npm run build` (search for both the plain `-s.woff2` and `-s.p.woff2`
+  variants per family) and update all 4 `extraFonts` paths + copied
+  filenames to match. Verify with `grep ds-font-face-dropped
+  ds-bundle/_ds_bundle.css` after every rebuild — it must be empty.
+
+- **`@kind other` token annotations must be inline, not just at `:root`.**
+  The 6 Tailwind-internal properties (`--tw-border-style`, `--animate-pulse`,
+  `--default-transition-duration`, `--default-transition-timing-function`,
+  `--tw-blur`, `--tw-outline-style`) are declared multiple times throughout
+  the compiled CSS (the universal reset block, `@layer theme`, utility
+  classes like `.border-none`/`.blur`/`.outline-none`). A single `:root`
+  re-declaration with the comment (the first attempt) apparently wasn't
+  enough for the claude.ai/design classifier — it likely scans every
+  occurrence, not just one. Fixed by post-processing
+  `.ds-sync/compiled-tailwind.css` with `.design-sync/scripts/annotate-kind.mjs`
+  (committed — regex `--PROP:[^;]+;` → append `/* @kind other */` for each
+  of the 6 prop names, skip already-annotated), run after the `npm run
+  build` copy and before `package-build.mjs`:
+  `node .design-sync/scripts/annotate-kind.mjs .ds-sync/compiled-tailwind.css`.
+  The `.design-sync/tokens/kind-overrides.css` `:root` block is still
+  appended afterward too, as a documented fallback — harmless
+  belt-and-suspenders.
 
 ## Preview scope (this sync)
 

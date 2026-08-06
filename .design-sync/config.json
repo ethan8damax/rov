@@ -7,7 +7,12 @@
   "srcDir": "components",
   "readmeHeader": ".design-sync/conventions.md",
   "cssEntry": "./.ds-sync/compiled-tailwind.css",
-  "extraFonts": ["./.ds-sync/fonts/7ab938503e4547a1-s.woff2", "./.ds-sync/fonts/ccc01da6a2b3d788-s.woff2"],
+  "extraFonts": [
+    "./.ds-sync/fonts/7ab938503e4547a1-s.woff2",
+    "./.ds-sync/fonts/ccc01da6a2b3d788-s.woff2",
+    "./.ds-sync/fonts/13971731025ec697-s.p.woff2",
+    "./.ds-sync/fonts/fa3e259cafa8f47e-s.p.woff2"
+  ],
   "componentSrcMap": {
     "Sidebar": null,
     "MobileNav": null,
