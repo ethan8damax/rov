@@ -77,6 +77,28 @@ exports. This sync runs entirely in the converter's synth-entry mode against
   `.next/static/css/*.css` → `.ds-sync/compiled-tailwind.css` before every
   re-sync (do this before running the converter).
 
+- **`fonts/fonts.css` vs `_ds_bundle.css` shipped conflicting `@font-face` src
+  paths (found 2026-08-11).** `cfg.cssEntry` is a raw copy of Next's compiled
+  CSS, so its `@font-face` rules use next/font's absolute src
+  (`/_next/static/media/<hash>.woff2`). The converter's `extractFonts()`
+  resolves `url()`s via `path.resolve(srcDir, u)` — an **absolute** `u` makes
+  `resolve()` ignore `srcDir` entirely, so it can never find the file under
+  `.ds-sync/fonts/` and never copies or rewrites it; the rule still ships
+  verbatim (dead src) into `fonts/fonts.css`. Separately, `_ds_bundle.css`
+  gets a *different* code path: `cfg.extraFonts` copies the same 4 files into
+  `fonts/`, then `rewriteBundleFontFaces()` patches `_ds_bundle.css`'s
+  `@font-face` blocks to `./fonts/<hash>` once those files exist. Net result:
+  two shipped stylesheets declare `@font-face` for the same family/weight
+  with two different (one dead) `src` values — flagged by claude.ai/design as
+  a conflict. Fixed via `.design-sync/scripts/rewrite-font-paths.mjs`, which
+  rewrites `/_next/static/media/<hash>` → `./fonts/<hash>` in
+  `.ds-sync/compiled-tailwind.css` *before* the converter runs, so
+  `extractFonts()` can resolve+copy it the same way `_ds_bundle.css` does —
+  both files end up with identical, working `./fonts/...` src. Run order:
+  after the `npm run build` + CSS copy step, before `annotate-kind.mjs` (order
+  between those two doesn't matter, both must run before `package-build.mjs`):
+  `node .design-sync/scripts/rewrite-font-paths.mjs .ds-sync/compiled-tailwind.css`.
+
 - **Brand fonts (DM Sans, DM Serif Display) — 4 files, not 2.** Next.js's
   `next/font/google` splits EACH family/weight into two `@font-face` rules
   by `unicode-range`: an extended-Latin subset (accented/special chars) and
@@ -113,6 +135,17 @@ exports. This sync runs entirely in the converter's synth-entry mode against
   The `.design-sync/tokens/kind-overrides.css` `:root` block is still
   appended afterward too, as a documented fallback — harmless
   belt-and-suspenders.
+
+- **3 custom properties on component selectors
+  (`.focus\:outline-none:focus`, `.__variable_ccfcb5`, `.__variable_0e4539`)
+  are intentional, not a bug — leave them.** `.focus\:outline-none:focus` is
+  Tailwind v4's own per-utility scoping of `--tw-outline-style`; moving it to
+  `:root` would make it apply unconditionally instead of only under
+  `:focus`, changing real behavior. `.__variable_ccfcb5`/`.__variable_0e4539`
+  are next/font/google's own generated classes (applied to `<html>` in
+  `app/layout.tsx` via `dmSans.variable`/`dmSerif.variable`) that scope
+  `--font-dm-sans`/`--font-dm-serif` — exactly the "Next.js font-loader
+  artifact" case the classifier's own message allows leaving alone.
 
 ## Preview scope (this sync)
 
