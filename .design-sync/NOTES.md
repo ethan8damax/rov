@@ -118,39 +118,39 @@ exports. This sync runs entirely in the converter's synth-entry mode against
   filenames to match. Verify with `grep ds-font-face-dropped
   ds-bundle/_ds_bundle.css` after every rebuild — it must be empty.
 
-- **`@kind other` belongs ONLY on the hand-written `:root` block — never
-  inline into Tailwind's compiled output (root-caused 2026-08-12, after two
-  wrong theories).** The 6 Tailwind-internal properties (`--tw-border-style`,
-  `--animate-pulse`, `--default-transition-duration`,
+- **`@kind other` placement: the classifier has given contradictory
+  diagnoses across rounds (as of 2026-08-12) — annotate everywhere, don't
+  chase a single theory further.** The 6 Tailwind-internal properties
+  (`--tw-border-style`, `--animate-pulse`, `--default-transition-duration`,
   `--default-transition-timing-function`, `--tw-blur`, `--tw-outline-style`)
-  are declared many times throughout the compiled CSS: once genuinely under
-  `:root` (Tailwind's `@layer theme{:host,:root{...}}` block), and several
-  more times under selectors that are NOT a token scope — the universal
-  reset (`@layer properties{...{*,::backdrop,:after,:before{...}}}`) and
-  utility classes (`.border-none`, `.blur`, `.outline-none`,
-  `.focus\:outline-none:focus`). The claude.ai/design classifier only
-  attaches `@kind` to declarations under a real token scope (`:root`, a
-  theme class, `[data-*]`) — a same-line, correctly-formatted comment on a
-  declaration under `*,::before,::after,::backdrop` can never attach, no
-  matter how it's punctuated. commit `274b614` guessed wrong here: it read
-  the classifier's first complaint as "one `:root` declaration wasn't
-  enough, annotate every occurrence" and added a regex pass
-  (`.design-sync/scripts/annotate-kind.mjs`) that inline-annotated the reset
-  block and utility classes too — which didn't just fail to help, the
-  classifier named that duplicate reset-block declaration as the specific
-  thing it couldn't resolve. A follow-up attempt (also wrong) chased a
-  same-line-attachment theory and extended the regex to catch
-  `.blur{--tw-blur:blur(8px)}`'s brace-terminated form — same mistake, still
-  a non-root selector. **Fix:** `annotate-kind.mjs` no longer inline-annotates
-  anything; its only job now is appending
-  `.design-sync/tokens/kind-overrides.css`'s hand-written `:root {}` block
-  (idempotent — skipped if already present) to
-  `.ds-sync/compiled-tailwind.css`, run after the `npm run build` copy and
-  before `package-build.mjs`:
+  are declared many times throughout the compiled CSS: once under
+  Tailwind's own `@layer theme{:host,:root{...}}` block, and several more
+  times under the universal reset (`@layer properties{...{*,::backdrop,
+  :after,:before{...}}}`) and utility classes (`.border-none`, `.blur`,
+  `.outline-none`, `.focus\:outline-none:focus`). Round 1 (`274b614`):
+  classifier said one `:root` declaration wasn't enough, annotate every
+  occurrence → added a regex pass that inline-annotated everything,
+  including the reset block. Round 2: classifier said the reset-block/
+  utility-class copies can NEVER attach regardless of formatting because
+  the selector isn't a token scope, named the reset-block duplicate as
+  the specific unresolvable one, said to strip inline annotations entirely
+  and keep only the hand-written `:root` block → removed the inline pass.
+  Round 3: classifier said the reset-block declaration (`--tw-border-style`
+  at position 349, `--tw-blur` at 553, `--tw-outline-style` at 15143/15423)
+  is STILL un-annotated and is "the true reset declaration the classifier
+  likely keys off" — add `@kind other` there specifically, same line, after
+  the `;`. This directly contradicts round 2 about the exact same lines.
+  **Given two consecutive, mutually exclusive diagnoses from the same tool,
+  stop trying to infer which single location it actually reads.**
+  `annotate-kind.mjs` now annotates the property EVERYWHERE it's declared —
+  reset block, utility classes (both semicolon- and brace-terminated
+  forms), and the hand-written `:root` block via `kind-overrides.css` —
+  so it doesn't matter which occurrence is being read. If a future round
+  says this is *still* wrong, treat it as evidence the checker itself has a
+  limitation here rather than attempting a fourth source-repo theory —
+  it's reasonable to stop and accept this as a known, documented exception.
+  Run after the `npm run build` copy and before `package-build.mjs`:
   `node .design-sync/scripts/annotate-kind.mjs .ds-sync/compiled-tailwind.css`.
-  That block is the ONLY annotated declaration site for these 6 properties —
-  don't add annotations anywhere else, and don't re-add an inline-annotation
-  pass without checking the target selector is actually `:root` first.
 
   **The `kind-overrides.css` append was never actually scripted before
   2026-08-12 — it silently dropped on the 2026-08-11 rebuild.** NOTES.md
