@@ -132,20 +132,43 @@ exports. This sync runs entirely in the converter's synth-entry mode against
   of the 6 prop names, skip already-annotated), run after the `npm run
   build` copy and before `package-build.mjs`:
   `node .design-sync/scripts/annotate-kind.mjs .ds-sync/compiled-tailwind.css`.
-  The `.design-sync/tokens/kind-overrides.css` `:root` block is still
-  appended afterward too, as a documented fallback — harmless
-  belt-and-suspenders.
 
-- **3 custom properties on component selectors
-  (`.focus\:outline-none:focus`, `.__variable_ccfcb5`, `.__variable_0e4539`)
-  are intentional, not a bug — leave them.** `.focus\:outline-none:focus` is
-  Tailwind v4's own per-utility scoping of `--tw-outline-style`; moving it to
-  `:root` would make it apply unconditionally instead of only under
-  `:focus`, changing real behavior. `.__variable_ccfcb5`/`.__variable_0e4539`
-  are next/font/google's own generated classes (applied to `<html>` in
-  `app/layout.tsx` via `dmSans.variable`/`dmSerif.variable`) that scope
-  `--font-dm-sans`/`--font-dm-serif` — exactly the "Next.js font-loader
-  artifact" case the classifier's own message allows leaving alone.
+  **`--tw-blur` kept re-flagging after the above (found 2026-08-12).** Unlike
+  the other 5, `--tw-blur` has a SECOND occurrence — `.blur{--tw-blur:blur(8px)}`
+  — where it's the last declaration in the rule, no trailing `;` before `}`.
+  The original regex (`--PROP:[^;]+;`) requires a semicolon, so this
+  occurrence was never annotated; the classifier was reading that one, not
+  the correctly-annotated reset-block one. `annotate-kind.mjs` now also
+  matches the brace-terminated form (`--PROP:[^;{}]+\}` → adds `;` +
+  the comment before the `}`) — naturally idempotent, since the rewritten
+  form ends in `;` and no longer matches on a re-run.
+
+  **The `kind-overrides.css` append was never actually scripted (found
+  2026-08-12) — it silently dropped on the 2026-08-11 rebuild.** NOTES.md
+  described appending `.design-sync/tokens/kind-overrides.css` to
+  `.ds-sync/compiled-tailwind.css` as a build step, but no script ever did
+  it — someone did it by hand once (visible in the very first synced
+  bundle), and it was lost the moment `compiled-tailwind.css` got
+  regenerated from a fresh `npm run build` in a later session, with nothing
+  to reproduce the append. `annotate-kind.mjs` now does this itself (appends
+  the file if its content isn't already present — idempotent) after the
+  inline-annotation pass, so it can't be silently skipped again.
+
+- **3 custom properties on component selectors — 2 moved to `:root`, 1
+  deliberately left (resolved 2026-08-12).** `.focus\:outline-none:focus`'s
+  `--tw-outline-style` stays: it's Tailwind v4's own per-utility scoping,
+  and moving it to `:root` would make outline-none apply unconditionally
+  instead of only under `:focus` — a real behavior change, not a
+  cosmetic one. `.__variable_ccfcb5`/`.__variable_0e4539` (next/font's
+  generated classes, applied to `<html>` in `app/layout.tsx` via
+  `dmSans.variable`/`dmSerif.variable`) scope `--font-dm-sans`/
+  `--font-dm-serif` — unlike the Tailwind-internal 6, these ARE real design
+  tokens (the brand typefaces, referenced by `--font-sans`/`--font-serif` in
+  the `@theme` block), so they're now also re-declared at `:root` in
+  `kind-overrides.css`, values copied verbatim from the compiled
+  `.__variable_*` classes. **Re-sync risk:** if `app/layout.tsx`'s font
+  config changes, next/font's generated `Fallback` name changes too —
+  re-copy the values from the fresh build's `.__variable_*` classes.
 
 ## Preview scope (this sync)
 

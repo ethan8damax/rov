@@ -15,4 +15,15 @@
   --default-transition-timing-function: cubic-bezier(.4,0,.2,1); /* @kind other */
   --tw-blur: initial; /* @kind other */
   --tw-outline-style: none; /* @kind other */
+
+  /* --font-dm-sans / --font-dm-serif ARE real design tokens (the brand
+     typefaces, referenced by --font-sans/--font-serif above them in the
+     @theme block) — unlike the 6 above, these belong at :root. next/font's
+     .variable class scopes them to .__variable_ccfcb5/.__variable_0e4539
+     applied on <html> instead (className={dmSans.variable} in
+     app/layout.tsx); values copied verbatim from that compiled output.
+     Re-sync risk: if app/layout.tsx's font config changes, next/font's
+     generated Fallback name changes too — re-copy from the fresh build. */
+  --font-dm-sans: "DM Sans", "DM Sans Fallback";
+  --font-dm-serif: "DM Serif Display", "DM Serif Display Fallback";
 }
