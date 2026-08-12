@@ -118,41 +118,49 @@ exports. This sync runs entirely in the converter's synth-entry mode against
   filenames to match. Verify with `grep ds-font-face-dropped
   ds-bundle/_ds_bundle.css` after every rebuild — it must be empty.
 
-- **`@kind other` token annotations must be inline, not just at `:root`.**
-  The 6 Tailwind-internal properties (`--tw-border-style`, `--animate-pulse`,
-  `--default-transition-duration`, `--default-transition-timing-function`,
-  `--tw-blur`, `--tw-outline-style`) are declared multiple times throughout
-  the compiled CSS (the universal reset block, `@layer theme`, utility
-  classes like `.border-none`/`.blur`/`.outline-none`). A single `:root`
-  re-declaration with the comment (the first attempt) apparently wasn't
-  enough for the claude.ai/design classifier — it likely scans every
-  occurrence, not just one. Fixed by post-processing
-  `.ds-sync/compiled-tailwind.css` with `.design-sync/scripts/annotate-kind.mjs`
-  (committed — regex `--PROP:[^;]+;` → append `/* @kind other */` for each
-  of the 6 prop names, skip already-annotated), run after the `npm run
-  build` copy and before `package-build.mjs`:
+- **`@kind other` belongs ONLY on the hand-written `:root` block — never
+  inline into Tailwind's compiled output (root-caused 2026-08-12, after two
+  wrong theories).** The 6 Tailwind-internal properties (`--tw-border-style`,
+  `--animate-pulse`, `--default-transition-duration`,
+  `--default-transition-timing-function`, `--tw-blur`, `--tw-outline-style`)
+  are declared many times throughout the compiled CSS: once genuinely under
+  `:root` (Tailwind's `@layer theme{:host,:root{...}}` block), and several
+  more times under selectors that are NOT a token scope — the universal
+  reset (`@layer properties{...{*,::backdrop,:after,:before{...}}}`) and
+  utility classes (`.border-none`, `.blur`, `.outline-none`,
+  `.focus\:outline-none:focus`). The claude.ai/design classifier only
+  attaches `@kind` to declarations under a real token scope (`:root`, a
+  theme class, `[data-*]`) — a same-line, correctly-formatted comment on a
+  declaration under `*,::before,::after,::backdrop` can never attach, no
+  matter how it's punctuated. commit `274b614` guessed wrong here: it read
+  the classifier's first complaint as "one `:root` declaration wasn't
+  enough, annotate every occurrence" and added a regex pass
+  (`.design-sync/scripts/annotate-kind.mjs`) that inline-annotated the reset
+  block and utility classes too — which didn't just fail to help, the
+  classifier named that duplicate reset-block declaration as the specific
+  thing it couldn't resolve. A follow-up attempt (also wrong) chased a
+  same-line-attachment theory and extended the regex to catch
+  `.blur{--tw-blur:blur(8px)}`'s brace-terminated form — same mistake, still
+  a non-root selector. **Fix:** `annotate-kind.mjs` no longer inline-annotates
+  anything; its only job now is appending
+  `.design-sync/tokens/kind-overrides.css`'s hand-written `:root {}` block
+  (idempotent — skipped if already present) to
+  `.ds-sync/compiled-tailwind.css`, run after the `npm run build` copy and
+  before `package-build.mjs`:
   `node .design-sync/scripts/annotate-kind.mjs .ds-sync/compiled-tailwind.css`.
+  That block is the ONLY annotated declaration site for these 6 properties —
+  don't add annotations anywhere else, and don't re-add an inline-annotation
+  pass without checking the target selector is actually `:root` first.
 
-  **`--tw-blur` kept re-flagging after the above (found 2026-08-12).** Unlike
-  the other 5, `--tw-blur` has a SECOND occurrence — `.blur{--tw-blur:blur(8px)}`
-  — where it's the last declaration in the rule, no trailing `;` before `}`.
-  The original regex (`--PROP:[^;]+;`) requires a semicolon, so this
-  occurrence was never annotated; the classifier was reading that one, not
-  the correctly-annotated reset-block one. `annotate-kind.mjs` now also
-  matches the brace-terminated form (`--PROP:[^;{}]+\}` → adds `;` +
-  the comment before the `}`) — naturally idempotent, since the rewritten
-  form ends in `;` and no longer matches on a re-run.
-
-  **The `kind-overrides.css` append was never actually scripted (found
-  2026-08-12) — it silently dropped on the 2026-08-11 rebuild.** NOTES.md
+  **The `kind-overrides.css` append was never actually scripted before
+  2026-08-12 — it silently dropped on the 2026-08-11 rebuild.** NOTES.md
   described appending `.design-sync/tokens/kind-overrides.css` to
   `.ds-sync/compiled-tailwind.css` as a build step, but no script ever did
   it — someone did it by hand once (visible in the very first synced
   bundle), and it was lost the moment `compiled-tailwind.css` got
   regenerated from a fresh `npm run build` in a later session, with nothing
-  to reproduce the append. `annotate-kind.mjs` now does this itself (appends
-  the file if its content isn't already present — idempotent) after the
-  inline-annotation pass, so it can't be silently skipped again.
+  to reproduce the append. `annotate-kind.mjs` now owns this step so it
+  can't be silently skipped again.
 
 - **3 custom properties on component selectors — 2 moved to `:root`, 1
   deliberately left (resolved 2026-08-12).** `.focus\:outline-none:focus`'s
