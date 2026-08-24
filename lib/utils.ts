@@ -39,6 +39,13 @@ export function sanitizeError(err: unknown): string {
   return msg
 }
 
+export function categoriesWithBankSums<T extends { id: string }>(
+  categories: T[],
+  bankSums: { category_id: string; total: number }[],
+): T[] {
+  return categories.filter(c => (bankSums.find(b => b.category_id === c.id)?.total ?? 0) > 0)
+}
+
 export function getPastMonths(currentMonth: string, count: number): string[] {
   const months: string[] = []
   let [y, mo] = currentMonth.split('-').map(Number)

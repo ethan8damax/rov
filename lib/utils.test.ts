@@ -1,4 +1,4 @@
-import { pad, shiftMonth, formatMonthLabel, currentMonth, cn, fmt, fmtWhole, getPastMonths } from './utils'
+import { pad, shiftMonth, formatMonthLabel, currentMonth, cn, fmt, fmtWhole, getPastMonths, categoriesWithBankSums } from './utils'
 
 describe('pad', () => {
   it('pads single digits', () => expect(pad(3)).toBe('03'))
@@ -37,6 +37,23 @@ describe('fmt', () => {
 describe('fmtWhole', () => {
   it('formats number as whole dollar amount', () => expect(fmtWhole(42810)).toBe('$42,810'))
   it('uses absolute value', () => expect(fmtWhole(-100)).toBe('$100'))
+})
+
+describe('categoriesWithBankSums', () => {
+  const cats = [
+    { id: 'flex-1' },
+    { id: 'fixed-1' }, // e.g. a recurring-linked category
+  ]
+
+  it('includes fixed (recurring-linked) categories with a positive bank sum, not just flexible ones', () => {
+    const sums = [{ category_id: 'flex-1', total: 20 }, { category_id: 'fixed-1', total: 50 }]
+    expect(categoriesWithBankSums(cats, sums).map(c => c.id)).toEqual(['flex-1', 'fixed-1'])
+  })
+
+  it('excludes categories with no bank sum or a zero total', () => {
+    const sums = [{ category_id: 'flex-1', total: 0 }]
+    expect(categoriesWithBankSums(cats, sums)).toEqual([])
+  })
 })
 
 describe('getPastMonths', () => {

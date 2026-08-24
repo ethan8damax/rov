@@ -9,7 +9,7 @@ import {
 import { getHouseholdMemberNames } from '@/lib/queries/households'
 import { getTransactionSumsByCategory, getTransactionSumsByIncomeSource } from '@/lib/queries/accounts'
 import { getSavingsPods } from '@/lib/queries/wealth'
-import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths, sanitizeError } from '@/lib/utils'
+import { currentMonth, shiftMonth, formatMonthLabel, fmtWhole, getPastMonths, sanitizeError, categoriesWithBankSums } from '@/lib/utils'
 import type { BudgetCategory, IncomeSource, RecurringPayment, SavingsPod } from '@/types'
 import { useAuth } from '@/lib/context/auth'
 import { useToast } from '@/components/ui/Toast'
@@ -123,7 +123,7 @@ export default function BudgetPage() {
   const flexible = useMemo(() => categories.filter(c => !c.recurring_payment_id), [categories])
   const fixed    = useMemo(() => categories.filter(c => c.recurring_payment_id),  [categories])
 
-  const hasBankSums = bankSums.some(b => b.total > 0 && flexible.some(f => f.id === b.category_id))
+  const hasBankSums = categoriesWithBankSums(categories, bankSums).length > 0
 
   async function handleAddCategory(name: string) {
     if (!name.trim()) return
@@ -174,7 +174,7 @@ export default function BudgetPage() {
   async function handleSyncActuals() {
     setSyncing(true)
     try {
-      const toSync = flexible.filter(c => (bankSums.find(b => b.category_id === c.id)?.total ?? 0) > 0)
+      const toSync = categoriesWithBankSums(categories, bankSums)
       const updated = await Promise.all(
         toSync.map(c => updateBudgetCategory(c.id, { actual: bankSums.find(b => b.category_id === c.id)!.total }))
       )
